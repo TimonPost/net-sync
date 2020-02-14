@@ -1,0 +1,13 @@
+[package]
+name = "net-sync"
+version = "0.0.0"
+authors = ["Timon Post <timonpost@hotmail.nl>"]
+edition = "2018"
+description = "Syncronizes type data modifications accross the network."
+keywords = ["sync", "entity-sync", "network", "ecs", "component"]
+exclude = ["target", "Cargo.lock"]
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
