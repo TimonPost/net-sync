@@ -12,13 +12,10 @@ license = "MIT"
 
 [features]
 default = ["lz4-compresion"]
-bincode-serialization = ["track/bincode"]
-rmp-serialization = ["track/rmp-serde"]
 lz4-compresion = ["lz4-compress"]
 
 [dependencies]
 lz4-compress = {version = "0.1.1", optional = true}
-track = { version = "0.0.0", path = "../track" }
 
 [dev-dependencies]
 criterion = "0.3.1"

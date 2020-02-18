@@ -1,5 +1,6 @@
 use crate::compression::CompressionStrategy;
-use std::result;
+use crate::error::ErrorKind;
+use std::error::Error;
 
 /// An compression strategy using the Lz4 compression.
 #[derive(Clone)]
@@ -10,8 +11,9 @@ impl CompressionStrategy for Lz4 {
         lz4_compress::compress(buffer)
     }
 
-    fn decompress(&self, buffer: Vec<u8>) -> result::Result<Vec<u8>, ()> {
-        lz4_compress::decompress(&buffer).map_err(|_| ())
+    fn decompress(&self, buffer: &[u8]) -> Result<Vec<u8>, ErrorKind> {
+        lz4_compress::decompress(&buffer)
+            .map_err(|e| ErrorKind::CompressionError(e.description().to_string()))
     }
 }
 

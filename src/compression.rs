@@ -7,7 +7,7 @@
 //! | :-- | :-- |
 //! | `lz4-compression` | compression using [lz4](LINK) (enabled by default) .|
 
-use std::result;
+use crate::error::ErrorKind;
 
 #[cfg(feature = "lz4-compresion")]
 pub mod lz4;
@@ -18,14 +18,7 @@ pub trait CompressionStrategy: Clone + Default + Send + Sync {
     fn compress(&self, buffer: &[u8]) -> Vec<u8>;
 
     /// Decompresses the given buffer and returns the uncompressed result.
-    fn decompress(&self, buffer: Vec<u8>) -> result::Result<Vec<u8>, ()>;
-}
-
-/// A packet of compressed daa.
-#[derive(Clone, Debug, PartialOrd, PartialEq)]
-pub struct CompressedPacket {
-    /// The compressed data.
-    pub data: Vec<u8>,
+    fn decompress(&self, buffer: &[u8]) -> Result<Vec<u8>, ErrorKind>;
 }
 
 /// A wrapper type over an implementation of CompressionStrategy.
@@ -40,14 +33,12 @@ impl<S: CompressionStrategy> ModificationCompressor<S> {
     }
 
     /// Compresses the given buffer with the generic compression strategy.
-    pub fn compress(&self, buffer: &[u8]) -> CompressedPacket {
-        CompressedPacket {
-            data: self.strategy.compress(buffer),
-        }
+    pub fn compress(&self, buffer: &[u8]) -> Vec<u8> {
+        self.strategy.compress(buffer)
     }
 
     /// Decompresses the given buffer with the generic compression strategy.
-    pub fn decompress(&self, buffer: Vec<u8>) -> result::Result<Vec<u8>, ()> {
+    pub fn decompress(&self, buffer: &[u8]) -> Result<Vec<u8>, ErrorKind> {
         self.strategy.decompress(buffer)
     }
 }
