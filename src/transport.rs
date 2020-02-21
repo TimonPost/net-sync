@@ -1,7 +1,7 @@
 //use crate::compression::{CompressionStrategy, ModificationCompressor};
 //use std::net::UdpSocket;
 //use track::{
-//    serialisation::{ModificationSerializer, SerialisationStrategy},
+//    serialization::{ModificationSerializer, SerialisationStrategy},
 //    ModificationChannel,
 //};
 //
@@ -9,7 +9,7 @@
 //    socket: UdpSocket,
 //    channel: ModificationChannel,
 //    compression: ModificationCompressor<C>,
-//    serialisation: ModificationSerializer<S>,
+//    serialization: ModificationSerializer<S>,
 //}
 //
 ////impl Endpoint {
