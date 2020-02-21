@@ -7,7 +7,7 @@ description = "Abstraction for synchronizing game-entities across the network."
 keywords = ["sync", "entity-sync", "network", "ecs", "component"]
 exclude = ["target", "Cargo.lock"]
 license = "MIT"
-repository = "https://github.com/entity-sync-rs/net-sync/"
+repository = "https://github.com/entity-sync-rs/net-sync"
 documentation = "https://docs.rs/net-sync/"
 readme = "README.md"
 
