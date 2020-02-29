@@ -6,6 +6,12 @@ use std::collections::HashSet;
 #[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Uid(pub u32);
 
+impl Uid {
+    pub fn id(&self) -> u32 {
+        self.0
+    }
+}
+
 impl From<u32> for Uid {
     fn from(uid: u32) -> Self { Self(uid) }
 }
@@ -24,7 +30,7 @@ pub struct UidAllocator {
 impl UidAllocator {
     pub fn new() -> Self {
         Self {
-            index: 0,
+            index: 1,
             mapping: HashSet::new(),
         }
     }
@@ -47,3 +53,4 @@ impl UidAllocator {
 impl Default for UidAllocator {
     fn default() -> Self { Self::new() }
 }
+
