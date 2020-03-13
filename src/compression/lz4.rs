@@ -1,6 +1,5 @@
 use crate::compression::CompressionStrategy;
 use crate::error::ErrorKind;
-use std::error::Error;
 
 /// An compression strategy using the Lz4 compression.
 #[derive(Clone)]
