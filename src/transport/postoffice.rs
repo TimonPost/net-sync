@@ -1,20 +1,19 @@
 use std::collections::VecDeque;
-use crate::transport::{Message, UrgencyRequirement, ReceivedPacket};
-use crate::Event;
-use crate::transport::client::{Clients, Client};
+use crate::transport::{Message, UrgencyRequirement};
+use crate::transport::client::{Clients};
+use std::iter::{Enumerate};
+use std::collections::vec_deque::Iter;
+use crate::transport::PostBoxMessage;
 use std::net::SocketAddr;
-use crate::uid::Uid;
-use std::collections::hash_map::Iter;
-use std::iter::Filter;
 
-pub struct PostBox {
+pub struct PostBox<In: PostBoxMessage, Out: PostBoxMessage> { // seperate inbox from outbox generic
     addr: SocketAddr,
-    inbox: VecDeque<Event>,
-    outgoing: VecDeque<Message>,
+    inbox: VecDeque<In>,
+    outgoing: VecDeque<Message<Out>>,
 }
 
-impl PostBox {
-    pub fn new(addr: SocketAddr) -> PostBox {
+impl<In: PostBoxMessage, Out: PostBoxMessage> PostBox<In, Out> {
+    pub fn new(addr: SocketAddr) -> PostBox<In, Out> {
         PostBox {
             addr,
             inbox: VecDeque::new(),
@@ -22,7 +21,7 @@ impl PostBox {
         }
     }
 
-    pub fn add_to_inbox(&mut self, event: Event) {
+    pub fn add_to_inbox(&mut self, event: In) {
         self.inbox
             .push_back(event);
     }
@@ -43,20 +42,20 @@ impl PostBox {
 
     /// Creates a `Message` with the default guarantees provided by the `Socket` implementation and
     /// pushes it onto the messages queue to be sent on next sim tick.
-    pub fn send(&mut self, event: Event) {
+    pub fn send(&mut self, event: Out) {
         self.outgoing
             .push_back(Message::new(event, UrgencyRequirement::OnTick));
     }
 
     /// Creates a `Message` with the default guarantees provided by the `Socket` implementation and
     /// Pushes it onto the messages queue to be sent immediately.
-    pub fn send_immediate(&mut self, event: Event) {
+    pub fn send_immediate(&mut self, event: Out) {
         self.outgoing
             .push_back(Message::new(event, UrgencyRequirement::Immediate));
     }
 
     /// Returns a reference to the owned messages.
-    pub fn get_outgoing(&self) -> &VecDeque<Message> {
+    pub fn get_outgoing(&self) -> &VecDeque<Message<Out>> {
         &self.outgoing
     }
 
@@ -64,8 +63,8 @@ impl PostBox {
     /// the given filter.
     pub fn drain_outgoing_with_priority(
         &mut self,
-        mut filter: impl FnMut(&mut Message) -> bool,
-    ) -> Vec<Message> {
+        mut filter: impl FnMut(&mut Message<Out>) -> bool,
+    ) -> Vec<Message<Out>> {
         self.drain_outgoing(|message| {
             message.urgency() == UrgencyRequirement::Immediate || filter(message)
         })
@@ -74,7 +73,7 @@ impl PostBox {
     /// Drains the messages queue and returns the drained messages. The filter allows you to drain
     /// only messages that adhere to your filter. This might be useful in a scenario like draining
     /// messages with a particular urgency requirement.
-    pub fn drain_outgoing(&mut self, mut filter: impl FnMut(&mut Message) -> bool) -> Vec<Message> {
+    pub fn drain_outgoing(&mut self, mut filter: impl FnMut(&mut Message<Out>) -> bool) -> Vec<Message<Out>> {
         let mut drained = Vec::with_capacity(self.outgoing.len());
         let mut i = 0;
         while i != self.outgoing.len() {
@@ -86,33 +85,11 @@ impl PostBox {
                 i += 1;
             }
         }
+
         drained
     }
 
-    pub fn drain_inbox_modified(&mut self) -> Vec<Event> {
-        self.drain_inbox(|event| match event {
-            Event::ComponentModified(_entity_id, record) => {
-                true
-            }
-            _ => false,
-        })
-    }
-
-    pub fn drain_inbox_removed(&mut self) -> Vec<Event> {
-        self.drain_inbox(|event| match event {
-            Event::EntityRemoved(_entity_id) => true,
-            _ => false,
-        })
-    }
-
-    pub fn drain_inbox_inserted(&mut self) -> Vec<Event> {
-        self.drain_inbox(|event| match event {
-            Event::EntityInserted(_entity_id, _) => true,
-            _ => false,
-        })
-    }
-
-    pub fn drain_inbox(&mut self, mut filter: impl FnMut(&Event) -> bool) -> Vec<Event> {
+    pub fn drain_inbox(&mut self, mut filter: impl FnMut(&In) -> bool) -> Vec<In> {
         let mut drained = Vec::with_capacity(self.inbox.len());
         let mut i = 0;
         while i != self.inbox.len() {
@@ -125,6 +102,14 @@ impl PostBox {
             }
         }
         drained
+    }
+
+    pub fn remove_from_inbox(&mut self, index: usize) {
+        self.inbox.remove(index);
+    }
+
+    pub fn enumerate_inbox(&self) -> Enumerate<Iter<In>> {
+        self.inbox.iter().enumerate()
     }
 }
 
@@ -241,26 +226,26 @@ mod tests {
         let id = Uid(0);
 
         vec![
-            ReceivedPacket::new(addr, SentPacket::new(Event::EntityRemoved(id))),
-            ReceivedPacket::new(addr, SentPacket::new(Event::EntityInserted(id, vec![]))),
-            ReceivedPacket::new(addr, SentPacket::new(Event::EntityInserted(id, vec![]))),
+            ReceivedPacket::new(addr, SentPacket::new(ClientMessage::EntityRemoved(id))),
+            ReceivedPacket::new(addr, SentPacket::new(ClientMessage::EntityInserted(id, vec![]))),
+            ReceivedPacket::new(addr, SentPacket::new(ClientMessage::EntityInserted(id, vec![]))),
             ReceivedPacket::new(
                 addr,
-                SentPacket::new(Event::ComponentModified(
+                SentPacket::new(ClientMessage::ComponentModified(
                     id,
                     ComponentRecord::new(1, vec![]),
                 )),
             ),
             ReceivedPacket::new(
                 addr,
-                SentPacket::new(Event::ComponentModified(
+                SentPacket::new(ClientMessage::ComponentModified(
                     id,
                     ComponentRecord::new(2, vec![]),
                 )),
             ),
             ReceivedPacket::new(
                 addr,
-                SentPacket::new(Event::ComponentModified(
+                SentPacket::new(ClientMessage::ComponentModified(
                     id,
                     ComponentRecord::new(2, vec![]),
                 )),
@@ -268,12 +253,12 @@ mod tests {
         ]
     }
 
-    fn modify_event() -> Event {
-        Event::ComponentModified(Uid(0), ComponentRecord::new(0, test_payload().to_vec()))
+    fn modify_event() -> ClientMessage {
+        ClientMessage::ComponentModified(Uid(0), ComponentRecord::new(0, test_payload().to_vec()))
     }
 
-    fn remove_event() -> Event {
-        Event::EntityRemoved(Uid(0))
+    fn remove_event() -> ClientMessage {
+        ClientMessage::EntityRemoved(Uid(0))
     }
 
     fn test_payload() -> &'static [u8] {

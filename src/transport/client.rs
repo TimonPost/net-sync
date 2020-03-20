@@ -1,17 +1,17 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap};
 use std::net::SocketAddr;
 use crate::uid::Uid;
-use crate::transport::{Message, UrgencyRequirement, PostBox};
-use crate::Event;
+use crate::transport::{PostBox};
+use crate::{ClientMessage, ServerMessage};
 use std::collections::hash_map::{Iter, IterMut};
 use std::iter::Filter;
 
-type ClientId = u16;
+pub type ClientId = u16;
 
 pub struct Client {
     generated_entity_ids: HashMap<Uid, Uid>,
     connection_id: ClientId,
-    post_box: PostBox
+    post_box: PostBox<ClientMessage, ServerMessage>
 }
 
 impl Client {
@@ -23,11 +23,11 @@ impl Client {
         }
     }
 
-    pub fn postbox_mut(&mut self) -> &mut PostBox {
+    pub fn postbox_mut(&mut self) -> &mut PostBox<ClientMessage, ServerMessage> {
         &mut self.post_box
     }
 
-    pub fn postbox(&self) -> &PostBox {
+    pub fn postbox(&self) -> &PostBox<ClientMessage, ServerMessage> {
         &self.post_box
     }
 

@@ -1,28 +1,27 @@
-use crate::{Event};
 use serde::{Deserialize, Serialize};
 use crate::transport::UrgencyRequirement;
 
 /// Structure used to hold message payloads before they are consumed and sent by an underlying
 /// NetworkSystem.
 #[derive(Clone, Debug, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Message {
+pub struct Message<T> {
     /// The event that defines what kind of packet this is.
-    event: Event,
+    event: T,
     /// The requirement around when this message should be sent.
     urgency: UrgencyRequirement,
 }
 
-impl Message {
+impl<T> Message<T> {
     /// Creates and returns a new Message.
-    pub(crate) fn new(event: Event, urgency: UrgencyRequirement) -> Self {
+    pub(crate) fn new(event: T, urgency: UrgencyRequirement) -> Self {
         Self { event, urgency }
     }
 
-    pub fn event(self) -> Event {
+    pub fn event(self) -> T {
         self.event
     }
 
-    pub fn event_ref(&self) -> &Event {
+    pub fn event_ref(&self) -> &T {
         &self.event
     }
 
@@ -33,14 +32,14 @@ impl Message {
 
 #[cfg(test)]
 pub mod test {
-    use crate::{Event};
+    use crate::{ClientMessage};
     use crate::transport::{UrgencyRequirement, Message};
     use crate::uid::Uid;
 
     #[test]
     fn create_message_test() {
         let id = Uid(0);
-        let event = Event::EntityRemoved(Uid(1));
+        let event = ClientMessage::EntityRemoved(Uid(1));
         let requirement = UrgencyRequirement::Immediate;
 
         let message = Message::new(event.clone(), requirement.clone());

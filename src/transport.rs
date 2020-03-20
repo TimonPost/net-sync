@@ -1,11 +1,10 @@
 mod client;
 mod message;
 mod packet;
-mod record;
 mod postoffice;
 
 use serde::{Serialize, Deserialize};
-pub use self::{message::Message, packet::{SentPacket, ReceivedPacket}, record::ComponentRecord, postoffice::{PostBox, PostOffice}};
+pub use self::{client::{Clients, Client, ClientId}, message::Message, packet::{SentPacket, ReceivedPacket, PostBoxMessage}, postoffice::{PostBox, PostOffice}};
 
 /// Specification of urgency of the sending of a message. Typically we'll want to send messages
 /// on simulation tick but the option to send messages immediately is available.
@@ -17,6 +16,7 @@ pub enum UrgencyRequirement {
     /// Message will be sent as soon as possible.
     Immediate,
 }
+
 
 //use crate::compression::{CompressionStrategy, ModificationCompressor};
 //use std::net::UdpSocket;
