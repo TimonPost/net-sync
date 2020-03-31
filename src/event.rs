@@ -15,9 +15,12 @@ pub enum ClientMessage {
 
 impl PostBoxMessage for ClientMessage { }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServerMessage {
     StateUpdate(WorldState),
+    // The server response on client entity creation.
+    // The response contains client and server generated entity id.
+    EntityInsertAck(Uid, Uid),
 }
 
 impl PostBoxMessage for ServerMessage { }

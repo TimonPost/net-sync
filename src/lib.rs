@@ -13,7 +13,7 @@ pub use event::{ServerMessage, ClientMessage};
 pub type EntityId = u32;
 pub type ComponentId = u32;
 
-#[derive(Clone, Debug, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Hash, Debug, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ComponentData(ComponentId, Vec<u8>);
 
 impl ComponentData {

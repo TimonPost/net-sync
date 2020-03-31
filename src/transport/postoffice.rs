@@ -2,13 +2,50 @@ use std::collections::VecDeque;
 use crate::transport::{Message, UrgencyRequirement};
 use crate::transport::client::{Clients};
 use std::iter::{Enumerate};
-use std::collections::vec_deque::Iter;
+use std::collections::vec_deque::{Iter, IterMut};
 use crate::transport::PostBoxMessage;
 use std::net::SocketAddr;
+use std::ops::{DerefMut, Deref};
+
+pub struct InboxEntry<In: PostBoxMessage> {
+    pub (crate) acknowledged: bool,
+    pub (crate) message: In
+}
+
+impl<In: PostBoxMessage> InboxEntry<In> {
+    pub fn new(message: In, acknowledged: bool) -> InboxEntry<In> {
+        InboxEntry {
+            message,
+            acknowledged
+        }
+    }
+
+    pub fn acknowledged(&self) -> bool {
+        self.acknowledged
+    }
+
+    pub fn set_acknowledged(&mut self, acknowledged: bool) {
+        self.acknowledged = acknowledged;
+    }
+}
+
+impl <In: PostBoxMessage> Deref for InboxEntry<In> {
+    type Target = In;
+
+    fn deref(&self) -> &Self::Target {
+        &self.message
+    }
+}
+
+impl <In: PostBoxMessage> DerefMut for InboxEntry<In> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.message
+    }
+}
 
 pub struct PostBox<In: PostBoxMessage, Out: PostBoxMessage> { // seperate inbox from outbox generic
     addr: SocketAddr,
-    inbox: VecDeque<In>,
+    inbox: VecDeque<InboxEntry<In>>,
     outgoing: VecDeque<Message<Out>>,
 }
 
@@ -23,7 +60,12 @@ impl<In: PostBoxMessage, Out: PostBoxMessage> PostBox<In, Out> {
 
     pub fn add_to_inbox(&mut self, event: In) {
         self.inbox
-            .push_back(event);
+            .push_back(InboxEntry::new(event, false));
+    }
+
+    pub fn add_acknowledge_to_inbox(&mut self, event: In) {
+        self.inbox
+            .push_back(InboxEntry::new(event, true));
     }
 
     /// Returns true if there are messages enqueued to be sent.
@@ -93,9 +135,9 @@ impl<In: PostBoxMessage, Out: PostBoxMessage> PostBox<In, Out> {
         let mut drained = Vec::with_capacity(self.inbox.len());
         let mut i = 0;
         while i != self.inbox.len() {
-            if filter(&self.inbox[i]) {
-                if let Some(m) = self.inbox.remove(i) {
-                    drained.push(m);
+            if self.inbox[i].acknowledged() && filter(&self.inbox[i]) {
+                if let Some(entry) = self.inbox.remove(i) {
+                    drained.push(entry.message);
                 }
             } else {
                 i += 1;
@@ -108,8 +150,12 @@ impl<In: PostBoxMessage, Out: PostBoxMessage> PostBox<In, Out> {
         self.inbox.remove(index);
     }
 
-    pub fn enumerate_inbox(&self) -> Enumerate<Iter<In>> {
+    pub fn enumerate_inbox(&self) -> Enumerate<Iter<InboxEntry<In>>> {
         self.inbox.iter().enumerate()
+    }
+
+    pub fn enumerate_inbox_mut(&mut self) -> Enumerate<IterMut<InboxEntry<In>>> {
+        self.inbox.iter_mut().enumerate()
     }
 }
 

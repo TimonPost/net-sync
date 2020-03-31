@@ -2,14 +2,14 @@ use std::collections::{HashMap};
 use std::net::SocketAddr;
 use crate::uid::Uid;
 use crate::transport::{PostBox};
-use crate::{ClientMessage, ServerMessage};
+use crate::{ClientMessage, ServerMessage, EntityId};
 use std::collections::hash_map::{Iter, IterMut};
 use std::iter::Filter;
 
 pub type ClientId = u16;
 
 pub struct Client {
-    generated_entity_ids: HashMap<Uid, Uid>,
+    pub generated_entity_ids: HashMap<Uid, Uid>,
     connection_id: ClientId,
     post_box: PostBox<ClientMessage, ServerMessage>
 }
@@ -34,6 +34,19 @@ impl Client {
     pub fn add_id_mapping(&mut self, client_id: Uid, server_id: Uid) {
         self.generated_entity_ids.insert(client_id, server_id);
     }
+
+    pub fn get_server_entity_id(&self, client_id: Uid) -> Option<Uid> {
+        self.generated_entity_ids.iter().find(|(c_id, server_id)| **c_id == client_id).map(|v| *v.1)
+    }
+
+    /// The server replaces the client generated entity identifier.
+    /// The client will keep using its own identifier until it has processed the
+    /// server acknowledgment which contains the new server generated identifier.
+    /// Until that time the entity id should be mapped, a check has to be done to figure out if the given identifier was already mapped by the server.
+    /// If that is the case we will return the server identifier.
+    pub fn is_accepted(&self, entity_id: Uid) -> Option<Uid> {
+        self.get_server_entity_id(entity_id)
+    }
 }
 
 pub struct Clients {
@@ -51,7 +64,7 @@ impl Clients {
     pub fn add(&mut self, addr: SocketAddr, client_id: ClientId) {
         if !self.clients.contains_key(&client_id) {
             self.clients.insert(client_id, Client::new(addr, client_id));
-        }else {
+        } else {
             panic!("Tried to add client, but it already exists.");
         }
     }
