@@ -1,192 +1,136 @@
-use std::collections::VecDeque;
-use crate::transport::{Message, UrgencyRequirement};
-use crate::transport::client::{Clients};
-use std::iter::{Enumerate};
-use std::collections::vec_deque::{Iter, IterMut};
-use crate::transport::PostBoxMessage;
 use std::net::SocketAddr;
-use std::ops::{DerefMut, Deref};
+use crate::transport;
+use log::debug;
+use crate::transport::{NetworkMessage, NetworkCommand, ClientId, Client};
+use std::collections::HashMap;
+use std::collections::hash_map::{Iter, IterMut};
+use std::iter::Filter;
 
-pub struct InboxEntry<In: PostBoxMessage> {
-    pub (crate) acknowledged: bool,
-    pub (crate) message: In
+pub struct PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
+where
+    ServerToClientMessage: NetworkMessage,
+    ClientToServerMessage: NetworkMessage,
+    ClientToServerCommand: NetworkCommand,
+{
+    clients: HashMap<
+        ClientId,
+        Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>,
+    >,
 }
 
-impl<In: PostBoxMessage> InboxEntry<In> {
-    pub fn new(message: In, acknowledged: bool) -> InboxEntry<In> {
-        InboxEntry {
-            message,
-            acknowledged
-        }
-    }
-
-    pub fn acknowledged(&self) -> bool {
-        self.acknowledged
-    }
-
-    pub fn set_acknowledged(&mut self, acknowledged: bool) {
-        self.acknowledged = acknowledged;
-    }
-}
-
-impl <In: PostBoxMessage> Deref for InboxEntry<In> {
-    type Target = In;
-
-    fn deref(&self) -> &Self::Target {
-        &self.message
-    }
-}
-
-impl <In: PostBoxMessage> DerefMut for InboxEntry<In> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.message
-    }
-}
-
-pub struct PostBox<In: PostBoxMessage, Out: PostBoxMessage> { // seperate inbox from outbox generic
-    addr: SocketAddr,
-    inbox: VecDeque<InboxEntry<In>>,
-    outgoing: VecDeque<Message<Out>>,
-}
-
-impl<In: PostBoxMessage, Out: PostBoxMessage> PostBox<In, Out> {
-    pub fn new(addr: SocketAddr) -> PostBox<In, Out> {
-        PostBox {
-            addr,
-            inbox: VecDeque::new(),
-            outgoing: VecDeque::new()
-        }
-    }
-
-    pub fn add_to_inbox(&mut self, event: In) {
-        self.inbox
-            .push_back(InboxEntry::new(event, false));
-    }
-
-    pub fn add_acknowledge_to_inbox(&mut self, event: In) {
-        self.inbox
-            .push_back(InboxEntry::new(event, true));
-    }
-
-    /// Returns true if there are messages enqueued to be sent.
-    pub fn empty_inbox(&self) -> bool {
-        self.inbox.is_empty()
-    }
-
-    /// Returns true if there are messages enqueued to be sent.
-    pub fn empty_outgoing(&self) -> bool {
-        self.outgoing.is_empty()
-    }
-
-    pub fn addr(&self) -> SocketAddr {
-        self.addr
-    }
-
-    /// Creates a `Message` with the default guarantees provided by the `Socket` implementation and
-    /// pushes it onto the messages queue to be sent on next sim tick.
-    pub fn send(&mut self, event: Out) {
-        self.outgoing
-            .push_back(Message::new(event, UrgencyRequirement::OnTick));
-    }
-
-    /// Creates a `Message` with the default guarantees provided by the `Socket` implementation and
-    /// Pushes it onto the messages queue to be sent immediately.
-    pub fn send_immediate(&mut self, event: Out) {
-        self.outgoing
-            .push_back(Message::new(event, UrgencyRequirement::Immediate));
-    }
-
-    /// Returns a reference to the owned messages.
-    pub fn get_outgoing(&self) -> &VecDeque<Message<Out>> {
-        &self.outgoing
-    }
-
-    /// Returns the messages to send by returning the immediate messages or anything adhering to
-    /// the given filter.
-    pub fn drain_outgoing_with_priority(
-        &mut self,
-        mut filter: impl FnMut(&mut Message<Out>) -> bool,
-    ) -> Vec<Message<Out>> {
-        self.drain_outgoing(|message| {
-            message.urgency() == UrgencyRequirement::Immediate || filter(message)
-        })
-    }
-
-    /// Drains the messages queue and returns the drained messages. The filter allows you to drain
-    /// only messages that adhere to your filter. This might be useful in a scenario like draining
-    /// messages with a particular urgency requirement.
-    pub fn drain_outgoing(&mut self, mut filter: impl FnMut(&mut Message<Out>) -> bool) -> Vec<Message<Out>> {
-        let mut drained = Vec::with_capacity(self.outgoing.len());
-        let mut i = 0;
-        while i != self.outgoing.len() {
-            if filter(&mut self.outgoing[i]) {
-                if let Some(m) = self.outgoing.remove(i) {
-                    drained.push(m);
-                }
-            } else {
-                i += 1;
-            }
-        }
-
-        drained
-    }
-
-    pub fn drain_inbox(&mut self, mut filter: impl FnMut(&In) -> bool) -> Vec<In> {
-        let mut drained = Vec::with_capacity(self.inbox.len());
-        let mut i = 0;
-        while i != self.inbox.len() {
-            if self.inbox[i].acknowledged() && filter(&self.inbox[i]) {
-                if let Some(entry) = self.inbox.remove(i) {
-                    drained.push(entry.message);
-                }
-            } else {
-                i += 1;
-            }
-        }
-        drained
-    }
-
-    pub fn remove_from_inbox(&mut self, index: usize) {
-        self.inbox.remove(index);
-    }
-
-    pub fn enumerate_inbox(&self) -> Enumerate<Iter<InboxEntry<In>>> {
-        self.inbox.iter().enumerate()
-    }
-
-    pub fn enumerate_inbox_mut(&mut self) -> Enumerate<IterMut<InboxEntry<In>>> {
-        self.inbox.iter_mut().enumerate()
-    }
-}
-
-pub struct PostOffice {
-    clients: Clients,
-    client_count: u16
-}
-
-impl PostOffice {
-    pub fn new() -> PostOffice {
+impl<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
+    PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
+where
+    ServerToClientMessage: NetworkMessage,
+    ClientToServerMessage: NetworkMessage,
+    ClientToServerCommand: NetworkCommand,
+{
+    pub fn new() -> PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
+    {
         PostOffice {
-            clients: Clients::new(),
-            client_count: 0
+            clients: HashMap::new()
         }
     }
 
-    pub fn register_client(&mut self, addr: SocketAddr) {
-        self.clients.add(addr, self.client_count);
-        self.client_count += 1;
+    pub fn clients(
+        &self,
+    ) -> Iter<ClientId, Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>> {
+        self.clients.iter()
     }
 
-    pub fn clients_mut(&mut self) -> &mut Clients {
-        &mut self.clients
+    pub fn clients_mut(
+        &mut self,
+    ) -> IterMut<ClientId, Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>> {
+        self.clients.iter_mut()
+    }
+
+    pub fn add_client(&mut self, addr: SocketAddr) -> Option<ClientId> {
+        let new_client_id = self.client_count() as u16;
+        if !self.client_exists(addr) {
+            self.clients.insert(new_client_id, Client::new(addr, new_client_id));
+            return Some(new_client_id);
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_client(&mut self, client_id: &ClientId) {
+        if !self.clients.contains_key(client_id) {
+            self.clients.remove(client_id);
+        } else {
+            panic!("Tried to remove client, but it doesn't exist.");
+        }
+    }
+
+    pub fn client_exists(&self, addr: SocketAddr) -> bool {
+        self.clients.values().any(|v| v.addr() == addr)
+    }
+
+    pub fn client_by_addr_mut(
+        &mut self,
+        addr: &SocketAddr,
+    ) -> Option<&mut Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>>
+    {
+        self.clients
+            .iter_mut()
+            .find(|(_, client)| client.addr() == *addr)
+            .map(|(_, v)| v)
+    }
+
+    pub fn client_by_id_mut(
+        &mut self,
+        id: &ClientId,
+    ) -> Option<&mut Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>>
+    {
+        self.clients.get_mut(id)
+    }
+
+    pub fn clients_with_inbox(
+        &mut self,
+    ) -> Filter<
+        IterMut<u16, Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>>,
+        fn(
+            &(
+                &u16,
+                &mut Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>,
+            ),
+        ) -> bool,
+    > {
+        self.clients_mut().filter(|f| !f.1.postbox().empty_inbox())
+    }
+
+    pub fn client_count(&self) -> usize {
+        self.clients.len()
+    }
+
+    pub fn broadcast(&mut self, message: transport::ServerToClientMessage<ServerToClientMessage>) {
+        debug!("Broadcast Message");
+        for client in self.clients_mut() {
+            let mut message = message.clone();
+            let client_highest_seen = client.1
+                .command_postbox()
+                .highest_seen();
+
+            // Calculate how much command frames the client offset from the server command frame.
+            // The client uses this value to adjust his local synchronisation speed.
+            if let transport::ServerToClientMessage::StateUpdate(ref mut world_state) = message {
+                world_state.command_frame_offset = client_highest_seen as i32 - world_state.command_frame as i32;
+            }
+
+            let postbox = client.1.postbox_mut();
+
+            postbox.send(message);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{ComponentRecord, SentPacket};
     use std::net::SocketAddr;
+
+    use crate::{ComponentRecord, SentPacket};
+
+    use super::*;
 
     #[test]
     fn test_send_with_default_requirements() {
@@ -273,8 +217,14 @@ mod tests {
 
         vec![
             ReceivedPacket::new(addr, SentPacket::new(ClientMessage::EntityRemoved(id))),
-            ReceivedPacket::new(addr, SentPacket::new(ClientMessage::EntityInserted(id, vec![]))),
-            ReceivedPacket::new(addr, SentPacket::new(ClientMessage::EntityInserted(id, vec![]))),
+            ReceivedPacket::new(
+                addr,
+                SentPacket::new(ClientMessage::EntityInserted(id, vec![])),
+            ),
+            ReceivedPacket::new(
+                addr,
+                SentPacket::new(ClientMessage::EntityInserted(id, vec![])),
+            ),
             ReceivedPacket::new(
                 addr,
                 SentPacket::new(ClientMessage::ComponentModified(

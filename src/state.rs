@@ -1,26 +1,35 @@
-use std::fmt::{Debug, Formatter, Error};
-use serde::{Serialize, Deserialize};
-use std::collections::{HashSet, HashMap};
-use crate::{ComponentId, ComponentData, EntityId};
+use std::collections::HashSet;
+use std::fmt::{Debug, Error, Formatter};
+
+use serde::{Deserialize, Serialize};
+
 use crate::uid::Uid;
+use crate::{ComponentData, ComponentId, EntityId};
+use crate::synchronisation::CommandFrame;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WorldState {
+    pub command_frame: CommandFrame,
+    pub command_frame_offset: i32,
     pub removed: HashSet<EntityId>,
     pub inserted: HashSet<EntityInsert>,
     pub changed: HashSet<ComponentChanged>,
     pub component_added: HashSet<ComponentAdded>,
-    pub component_removed: HashSet<ComponentRemoved>
+    pub component_removed: HashSet<ComponentRemoved>,
 }
 
 impl WorldState {
-    pub fn new() -> WorldState {
+    pub fn new(command_frame: CommandFrame) -> WorldState {
         WorldState {
             removed: HashSet::new(),
             inserted: HashSet::new(),
             changed: HashSet::new(),
             component_added: HashSet::new(),
-            component_removed: HashSet::new()
+            component_removed: HashSet::new(),
+            command_frame,
+            // The client command_frame offset is different for each client.
+            // This offset will be set when the state is sent to a certain client.
+            command_frame_offset: 0
         }
     }
 
@@ -44,17 +53,23 @@ impl WorldState {
     }
 
     pub fn add_component(&mut self, entity_id: Uid, component: ComponentData) {
-        self.component_added.insert(ComponentAdded(entity_id, component));
+        self.component_added
+            .insert(ComponentAdded(entity_id, component));
     }
 
     pub fn remove_component(&mut self, entity_id: Uid, component_id: ComponentId) {
         // TODO: remote `cloned`.
-        let found = self.component_added.iter().cloned().find(|v| v.0 == entity_id);
+        let found = self
+            .component_added
+            .iter()
+            .cloned()
+            .find(|v| v.0 == entity_id);
         if let Some(component) = found {
             self.component_added.remove(&component);
         }
 
-        self.component_removed.insert(ComponentRemoved(entity_id, component_id));
+        self.component_removed
+            .insert(ComponentRemoved(entity_id, component_id));
     }
 
     pub fn reset(&mut self) {
@@ -65,14 +80,25 @@ impl WorldState {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.inserted.is_empty() && self.removed.is_empty() && self.changed.is_empty() && self.component_added.is_empty() && self.component_removed.is_empty()
+        self.inserted.is_empty()
+            && self.removed.is_empty()
+            && self.changed.is_empty()
+            && self.component_added.is_empty()
+            && self.component_removed.is_empty()
     }
-
 }
 
 impl Debug for WorldState {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "Inserted: {:?}\t Removed: {:?}\t Changed: {:?}\t Added: {:?}\t Removed: {:?}", self.inserted.len(), self.removed.len(), self.changed.len(), self.component_added.len(), self.component_removed.len())
+        write!(
+            f,
+            "Inserted: {:?}\t Removed: {:?}\t Changed: {:?}\t Added: {:?}\t Removed: {:?}",
+            self.inserted.len(),
+            self.removed.len(),
+            self.changed.len(),
+            self.component_added.len(),
+            self.component_removed.len()
+        )
     }
 }
 
@@ -80,7 +106,7 @@ impl Debug for WorldState {
 pub struct ComponentChanged(pub EntityId, pub ComponentData);
 
 impl ComponentChanged {
-    pub fn entity_id (&self) -> EntityId {
+    pub fn entity_id(&self) -> EntityId {
         self.0
     }
 
@@ -93,7 +119,7 @@ impl ComponentChanged {
 pub struct ComponentAdded(pub EntityId, pub ComponentData);
 
 impl ComponentAdded {
-    pub fn entity_id (&self) -> EntityId {
+    pub fn entity_id(&self) -> EntityId {
         self.0
     }
 
@@ -102,11 +128,11 @@ impl ComponentAdded {
     }
 }
 
-#[derive(Debug, Clone,Hash, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ComponentRemoved(EntityId, ComponentId);
 
 impl ComponentRemoved {
-    pub fn entity_id (&self) -> EntityId {
+    pub fn entity_id(&self) -> EntityId {
         self.0
     }
 
@@ -119,7 +145,7 @@ impl ComponentRemoved {
 pub struct EntityInsert(EntityId, Vec<ComponentData>);
 
 impl EntityInsert {
-    pub fn entity_id (&self) -> EntityId {
+    pub fn entity_id(&self) -> EntityId {
         self.0
     }
 
@@ -130,9 +156,10 @@ impl EntityInsert {
 
 #[cfg(tests)]
 mod tests {
-    use crate::state::WorldState;
-    use net_sync::ComponentData;
     use net_sync::uid::Uid;
+    use net_sync::ComponentData;
+
+    use crate::state::WorldState;
     use crate::ComponentData;
 
     #[test]
@@ -148,6 +175,6 @@ mod tests {
     }
 
     fn fake_component() -> (Uid, Vec<ComponentData>) {
-        (1, vec![ComponentData::new(0, vec![0,1,2,3])])
+        (1, vec![ComponentData::new(0, vec![0, 1, 2, 3])])
     }
 }

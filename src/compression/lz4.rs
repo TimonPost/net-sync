@@ -11,8 +11,7 @@ impl CompressionStrategy for Lz4 {
     }
 
     fn decompress(&self, buffer: &[u8]) -> Result<Vec<u8>, ErrorKind> {
-        lz4_compress::decompress(&buffer)
-            .map_err(|e| ErrorKind::CompressionError(e.to_string()))
+        lz4_compress::decompress(&buffer).map_err(|e| ErrorKind::CompressionError(e.to_string()))
     }
 }
 

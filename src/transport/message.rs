@@ -1,39 +1,36 @@
 use serde::{Deserialize, Serialize};
-use crate::transport::UrgencyRequirement;
 
-/// Structure used to hold message payloads before they are consumed and sent by an underlying
-/// NetworkSystem.
-#[derive(Clone, Debug, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Message<T> {
-    /// The event that defines what kind of packet this is.
-    event: T,
-    /// The requirement around when this message should be sent.
-    urgency: UrgencyRequirement,
+use crate::state::WorldState;
+use crate::transport::NetworkMessage;
+use crate::synchronisation::CommandFrame;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub enum ClientToServerMessage<Message, Command> {
+    Message(Message),
+    Command(CommandFrame, Command),
+    TimeSync,
 }
 
-impl<T> Message<T> {
-    /// Creates and returns a new Message.
-    pub(crate) fn new(event: T, urgency: UrgencyRequirement) -> Self {
-        Self { event, urgency }
-    }
-
-    pub fn event(self) -> T {
-        self.event
-    }
-
-    pub fn event_ref(&self) -> &T {
-        &self.event
-    }
-
-    pub fn urgency(&self) -> UrgencyRequirement {
-        self.urgency
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub enum ServerToClientMessage<Message> {
+    // The server state update.
+    StateUpdate(WorldState),
+    Message(Message),
 }
+
+impl<Message:  Serialize + for<'a> Deserialize<'a> + Send + Sync + Clone + 'static>  NetworkMessage for ServerToClientMessage<Message>  {
+
+}
+
+impl<Message:  Serialize + for<'a> Deserialize<'a> + Send + Sync + Clone + 'static, Comand:  Serialize + for<'a> Deserialize<'a> + Send + Sync + Clone + 'static>  NetworkMessage for ClientToServerMessage<Message, Comand>  {
+
+}
+
 
 #[cfg(test)]
 pub mod test {
-    use crate::{ClientMessage};
-    use crate::transport::{UrgencyRequirement, Message};
+    use crate::transport::message::MessageType;
+    use crate::transport::{Message, UrgencyRequirement};
     use crate::uid::Uid;
 
     #[test]
@@ -42,8 +39,8 @@ pub mod test {
         let event = ClientMessage::EntityRemoved(Uid(1));
         let requirement = UrgencyRequirement::Immediate;
 
-        let message = Message::new(event.clone(), requirement.clone());
-        assert_eq!(message.event_ref(), &event);
+        let message = Message::new(event.clone(), requirement.clone(), MessageType::Message);
+        assert_eq!(message.message_ref(), &event);
         assert_eq!(message.urgency(), requirement);
     }
 }

@@ -1,4 +1,5 @@
 use criterion::{criterion_group, Criterion};
+
 use net_sync::compression::{lz4::Lz4, CompressionStrategy, ModificationCompressor};
 use track::{preclude::Uuid, ModificationEvent};
 
