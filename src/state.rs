@@ -1,11 +1,11 @@
-use std::collections::HashSet;
-use std::fmt::{Debug, Error, Formatter};
+use std::{
+    collections::HashSet,
+    fmt::{Debug, Error, Formatter},
+};
 
 use serde::{Deserialize, Serialize};
 
-use crate::uid::Uid;
-use crate::{ComponentData, ComponentId, EntityId};
-use crate::synchronisation::CommandFrame;
+use crate::{synchronisation::CommandFrame, uid::Uid, ComponentData, ComponentId, EntityId};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WorldState {
@@ -29,18 +29,12 @@ impl WorldState {
             command_frame,
             // The client command_frame offset is different for each client.
             // This offset will be set when the state is sent to a certain client.
-            command_frame_offset: 0
+            command_frame_offset: 0,
         }
     }
 
     pub fn remove_entity(&mut self, entity_id: Uid) {
-        // TODO: remote `cloned`.
-        let found = self.inserted.iter().cloned().find(|v| v.0 == entity_id);
-
-        if let Some(component) = found {
-            self.inserted.remove(&component);
-        }
-
+        self.inserted.retain(|x| x.0 == entity_id);
         self.removed.insert(entity_id);
     }
 
@@ -49,6 +43,9 @@ impl WorldState {
     }
 
     pub fn change(&mut self, entity_id: Uid, component: ComponentData) {
+        // we only need the newest change of an certain entity.
+        self.changed.retain(|x| x.0 == entity_id);
+
         self.changed.insert(ComponentChanged(entity_id, component));
     }
 
@@ -59,14 +56,7 @@ impl WorldState {
 
     pub fn remove_component(&mut self, entity_id: Uid, component_id: ComponentId) {
         // TODO: remote `cloned`.
-        let found = self
-            .component_added
-            .iter()
-            .cloned()
-            .find(|v| v.0 == entity_id);
-        if let Some(component) = found {
-            self.component_added.remove(&component);
-        }
+        self.component_added.retain(|x| x.0 == entity_id);
 
         self.component_removed
             .insert(ComponentRemoved(entity_id, component_id));
@@ -156,11 +146,9 @@ impl EntityInsert {
 
 #[cfg(tests)]
 mod tests {
-    use net_sync::uid::Uid;
-    use net_sync::ComponentData;
+    use net_sync::{uid::Uid, ComponentData};
 
-    use crate::state::WorldState;
-    use crate::ComponentData;
+    use crate::{state::WorldState, ComponentData};
 
     #[test]
     fn insert_remove_while_inserted_should_clear_insert() {

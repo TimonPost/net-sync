@@ -1,10 +1,18 @@
-use std::net::SocketAddr;
-use crate::transport;
+use std::{
+    collections::{
+        hash_map::{Iter, IterMut},
+        HashMap,
+    },
+    iter::Filter,
+    net::SocketAddr,
+};
+
 use log::debug;
-use crate::transport::{NetworkMessage, NetworkCommand, ClientId, Client};
-use std::collections::HashMap;
-use std::collections::hash_map::{Iter, IterMut};
-use std::iter::Filter;
+
+use crate::{
+    transport,
+    transport::{Client, ClientId, NetworkCommand, NetworkMessage},
+};
 
 pub struct PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
 where
@@ -28,26 +36,31 @@ where
     pub fn new() -> PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
     {
         PostOffice {
-            clients: HashMap::new()
+            clients: HashMap::new(),
         }
     }
 
     pub fn clients(
         &self,
-    ) -> Iter<ClientId, Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>> {
+    ) -> Iter<ClientId, Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>>
+    {
         self.clients.iter()
     }
 
     pub fn clients_mut(
         &mut self,
-    ) -> IterMut<ClientId, Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>> {
+    ) -> IterMut<
+        ClientId,
+        Client<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>,
+    > {
         self.clients.iter_mut()
     }
 
     pub fn add_client(&mut self, addr: SocketAddr) -> Option<ClientId> {
         let new_client_id = self.client_count() as u16;
         if !self.client_exists(addr) {
-            self.clients.insert(new_client_id, Client::new(addr, new_client_id));
+            self.clients
+                .insert(new_client_id, Client::new(addr, new_client_id));
             return Some(new_client_id);
         } else {
             None
@@ -107,14 +120,12 @@ where
         debug!("Broadcast Message");
         for client in self.clients_mut() {
             let mut message = message.clone();
-            let client_highest_seen = client.1
-                .command_postbox()
-                .highest_seen();
+            let client_offset_from_server = client.1.command_postbox().command_frame_offset();
 
             // Calculate how much command frames the client offset from the server command frame.
             // The client uses this value to adjust his local synchronisation speed.
             if let transport::ServerToClientMessage::StateUpdate(ref mut world_state) = message {
-                world_state.command_frame_offset = client_highest_seen as i32 - world_state.command_frame as i32;
+                world_state.command_frame_offset = client_offset_from_server;
             }
 
             let postbox = client.1.postbox_mut();
@@ -128,140 +139,157 @@ where
 mod tests {
     use std::net::SocketAddr;
 
-    use crate::{ComponentRecord, SentPacket};
-
-    use super::*;
-
-    #[test]
-    fn test_send_with_default_requirements() {
-        let mut resource = create_test_resource();
-
-        resource.send(remove_event());
-
-        let packet = &resource.messages[0];
-
-        assert_eq!(resource.messages.len(), 1);
-        assert_eq!(packet.urgency(), UrgencyRequirement::OnTick);
-    }
-
-    #[test]
-    fn test_send_immediate_message() {
-        let mut resource = create_test_resource();
-
-        resource.send_immediate(modify_event());
-
-        let packet = &resource.messages[0];
-
-        assert_eq!(resource.messages.len(), 1);
-        assert_eq!(packet.urgency(), UrgencyRequirement::Immediate);
-    }
-
-    #[test]
-    fn test_has_messages() {
-        let mut resource = create_test_resource();
-        assert_eq!(resource.has_messages(), false);
-        resource.send_immediate(modify_event());
-        assert_eq!(resource.has_messages(), true);
-    }
-
-    #[test]
-    fn test_drain_only_immediate_messages() {
-        let mut resource = create_test_resource();
-
-        let addr = "127.0.0.1:3000".parse::<SocketAddr>().unwrap();
-        resource.send_immediate(modify_event());
-        resource.send_immediate(modify_event());
-        resource.send(remove_event());
-        resource.send(remove_event());
-        resource.send_immediate(modify_event());
-
-        assert_eq!(resource.drain_messages_to_send(|_| false).len(), 3);
-        assert_eq!(resource.drain_messages_to_send(|_| false).len(), 0);
-    }
-
-    #[test]
-    fn drain_removed_events() {
-        let mut buffer = ReceiveBufferResource::default();
-        packets().into_iter().for_each(|f| buffer.push(f));
-
-        assert_eq!(buffer.drain_removed().len(), 1);
-        assert_eq!(buffer.drain_removed().len(), 0);
-    }
-
-    #[test]
-    fn drain_inserted_events() {
-        let mut buffer = ReceiveBufferResource::default();
-        packets().into_iter().for_each(|f| buffer.push(f));
-
-        assert_eq!(buffer.drain_inserted().len(), 2);
-        assert_eq!(buffer.drain_inserted().len(), 0);
-    }
-
-    #[test]
-    fn drain_modified_events() {
-        let mut buffer = ReceiveBufferResource::default();
-        packets().into_iter().for_each(|f| buffer.push(f));
-
-        // There are three modification events.
-        assert_eq!(buffer.drain_modified(Uid(0), Uid(2)).len(), 2);
-        assert_eq!(buffer.drain_modified(Uid(0), Uid(1)).len(), 1);
-
-        // Everything should be drained.
-        assert_eq!(buffer.drain_modified(Uid(0), Uid(1)).len(), 0);
-        assert_eq!(buffer.drain_modified(Uid(0), Uid(2)).len(), 0);
-    }
-
-    fn packets() -> Vec<ReceivedPacket> {
-        let addr = "127.0.0.1:1234".parse().unwrap();
-        let id = Uid(0);
-
-        vec![
-            ReceivedPacket::new(addr, SentPacket::new(ClientMessage::EntityRemoved(id))),
-            ReceivedPacket::new(
-                addr,
-                SentPacket::new(ClientMessage::EntityInserted(id, vec![])),
-            ),
-            ReceivedPacket::new(
-                addr,
-                SentPacket::new(ClientMessage::EntityInserted(id, vec![])),
-            ),
-            ReceivedPacket::new(
-                addr,
-                SentPacket::new(ClientMessage::ComponentModified(
-                    id,
-                    ComponentRecord::new(1, vec![]),
-                )),
-            ),
-            ReceivedPacket::new(
-                addr,
-                SentPacket::new(ClientMessage::ComponentModified(
-                    id,
-                    ComponentRecord::new(2, vec![]),
-                )),
-            ),
-            ReceivedPacket::new(
-                addr,
-                SentPacket::new(ClientMessage::ComponentModified(
-                    id,
-                    ComponentRecord::new(2, vec![]),
-                )),
-            ),
-        ]
-    }
-
-    fn modify_event() -> ClientMessage {
-        ClientMessage::ComponentModified(Uid(0), ComponentRecord::new(0, test_payload().to_vec()))
-    }
-
-    fn remove_event() -> ClientMessage {
-        ClientMessage::EntityRemoved(Uid(0))
-    }
+    use crate::{
+        state::WorldState,
+        transport::{
+            Client, ClientId, ClientToServerMessage, PostOffice, ServerToClientMessage,
+            ServerToClientMessage::StateUpdate,
+        },
+    };
 
     fn test_payload() -> &'static [u8] {
         b"test"
     }
 
-    fn create_test_resource() -> SentBufferResource {
-        SentBufferResource::new()
+    #[test]
+    fn broadcast_should_broadcast() {
+        let mut postoffice = PostOffice::<u32, u32, u32>::new();
+
+        postoffice
+            .add_client("127.0.0.1:10".parse().unwrap())
+            .unwrap();
+        postoffice
+            .add_client("127.0.0.1:22".parse().unwrap())
+            .unwrap();
+
+        postoffice.broadcast(ServerToClientMessage::Message(1));
+
+        let client_count = postoffice.client_count();
+
+        let mut client1 = postoffice.client_by_id_mut(&0).unwrap();
+        assert_eq!(client1.postbox_mut().drain_outgoing(|_| true).len(), 1);
+
+        let mut client2 = postoffice.client_by_id_mut(&1).unwrap();
+        assert_eq!(client2.postbox_mut().drain_outgoing(|_| true).len(), 1);
+    }
+
+    #[test]
+    fn broadcast_should_update_offset_in_world_state() {
+        let mut postoffice = PostOffice::<u32, u32, u32>::new();
+
+        let client_id_1 = postoffice
+            .add_client("127.0.0.1:10".parse().unwrap())
+            .unwrap();
+        let client_id_2 = postoffice
+            .add_client("127.0.0.1:20".parse().unwrap())
+            .unwrap();
+
+        {
+            let mut client1 = postoffice.client_by_id_mut(&0).unwrap();
+            client1.command_postbox.command_frame_offset = 4;
+
+            let mut client2 = postoffice.client_by_id_mut(&1).unwrap();
+            client2.command_postbox.command_frame_offset = 6;
+        }
+
+        postoffice.broadcast(ServerToClientMessage::StateUpdate(WorldState::new(1)));
+
+        let mut client1 = postoffice.client_by_id_mut(&0).unwrap();
+        let client1_outgoing = client1.postbox_mut().drain_outgoing(|a| true);
+
+        let mut client2 = postoffice.client_by_id_mut(&1).unwrap();
+        let client_2_outgoing = client2.postbox_mut().drain_outgoing(|a| true);
+
+        match client1_outgoing.first().unwrap() {
+            ServerToClientMessage::StateUpdate(WorldState {
+                command_frame_offset: 4,
+                ..
+            }) => assert!(true),
+            _ => assert!(false),
+        };
+
+        match client_2_outgoing.first().unwrap() {
+            ServerToClientMessage::StateUpdate(WorldState {
+                command_frame_offset: 6,
+                ..
+            }) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+    #[test]
+    fn get_client_by_address_should_return() {
+        let mut postoffice = PostOffice::<u32, u32, u32>::new();
+
+        postoffice
+            .add_client("127.0.0.1:10".parse().unwrap())
+            .unwrap();
+
+        assert!(postoffice
+            .client_by_addr_mut(&("127.0.0.1:10".parse::<SocketAddr>().unwrap()))
+            .is_some())
+    }
+
+    #[test]
+    fn inserting_client_increases_client_id() {
+        let mut postoffice = PostOffice::<u32, u32, u32>::new();
+
+        assert_eq!(
+            postoffice
+                .add_client("127.0.0.1:10".parse().unwrap())
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            postoffice
+                .add_client("127.0.0.1:11".parse().unwrap())
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            postoffice
+                .add_client("127.0.0.1:12".parse().unwrap())
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            postoffice
+                .add_client("127.0.0.1:13".parse().unwrap())
+                .unwrap(),
+            3
+        );
+    }
+
+    #[test]
+    fn add_twice_the_same_client_returns_none() {
+        let mut postoffice = PostOffice::<u32, u32, u32>::new();
+
+        assert!(postoffice
+            .add_client("127.0.0.1:19".parse().unwrap())
+            .is_some());
+        assert!(postoffice
+            .add_client("127.0.0.1:19".parse().unwrap())
+            .is_none());
+    }
+
+    #[test]
+    fn returns_only_clients_with_inbox() {
+        let mut postoffice = PostOffice::<u32, u32, u32>::new();
+
+        let id_1 = postoffice
+            .add_client("127.0.0.1:10".parse().unwrap())
+            .unwrap();
+        let id_2 = postoffice
+            .add_client("127.0.0.1:11".parse().unwrap())
+            .unwrap();
+
+        let client = postoffice.client_by_id_mut(&id_1).unwrap();
+        client.add_received_message(ClientToServerMessage::Message(1), 0);
+
+        let clients = postoffice
+            .clients_with_inbox()
+            .into_iter()
+            .collect::<Vec<(&ClientId, &mut Client<u32, u32, u32>)>>();
+        assert_eq!(clients.len(), 1);
     }
 }

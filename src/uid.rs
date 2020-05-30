@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::u32;
+use std::{collections::HashMap, hash::Hash, u32};
 
 pub type Uid = u32;
 
@@ -63,6 +61,4 @@ impl<T: Hash + Eq> UidAllocator<T> {
 }
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}
