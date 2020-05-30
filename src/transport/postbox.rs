@@ -1,6 +1,10 @@
-use std::collections::vec_deque::{Iter, IterMut};
-use std::collections::VecDeque;
-use std::iter::Enumerate;
+use std::{
+    collections::{
+        vec_deque::{Iter, IterMut},
+        VecDeque,
+    },
+    iter::Enumerate,
+};
 
 use crate::transport::NetworkMessage;
 
@@ -94,5 +98,36 @@ where
 
     pub fn enumerate_inbox_mut(&mut self) -> Enumerate<IterMut<In>> {
         self.inbox.iter_mut().enumerate()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::transport::PostBox;
+
+    #[test]
+    fn drain_event_outgoing_with_filter_should_filter() {
+        let mut postbox = PostBox::<u32, u32>::new();
+        postbox.send(1);
+        postbox.send(2);
+        postbox.send(3);
+        postbox.send(4);
+
+        let result = postbox.drain_outgoing(|val| *val % 2 == 0);
+        assert_eq!(result[0], 2);
+        assert_eq!(result[1], 4);
+    }
+
+    #[test]
+    fn drain_event_numbers_from_inbox() {
+        let mut postbox = PostBox::<u32, u32>::new();
+        postbox.add_to_inbox(1);
+        postbox.add_to_inbox(2);
+        postbox.add_to_inbox(3);
+        postbox.add_to_inbox(4);
+
+        let result = postbox.drain_inbox(|val| *val % 2 == 0);
+        assert_eq!(result[0], 2);
+        assert_eq!(result[1], 4);
     }
 }

@@ -12,15 +12,25 @@ documentation = "https://docs.rs/net-sync/"
 readme = "README.md"
 
 [features]
-default = ["lz4-compresion"]
+default = ["lz4-compresion", "bincode-serialization"]
 lz4-compresion = ["lz4-compress"]
+bincode-serialization = ["bincode"]
+rmp-serialization = ["rmp-serde"]
 
 [dependencies]
-lz4-compress = {version = "0.1.1", optional = true}
-track = { version = "0.1.0", path = "../track" }
 serde = "1"
 bit-set = "0.5"
 log = "0.4.8"
+track-macro = { version = "0.1.0", path = "../track-macro" }
+serde-diff = { version = "0.2.0"  }
+crossbeam-channel = "0.4.0"
+
+# compressorts
+lz4-compress = {version = "0.1.1", optional = true}
+
+# serializers
+rmp-serde = {version = "0.14.2", optional = true }
+bincode = { version = "1.2.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"

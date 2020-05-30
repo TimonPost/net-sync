@@ -1,5 +1,4 @@
-use crate::compression::CompressionStrategy;
-use crate::error::ErrorKind;
+use crate::{compression::CompressionStrategy, error::ErrorKind};
 
 /// An compression strategy using the Lz4 compression.
 #[derive(Clone)]

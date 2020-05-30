@@ -1,8 +1,10 @@
 use std::net::SocketAddr;
-
-use crate::synchronisation::ServerCommandBuffer;
-use crate::transport::{message, PostBox, NetworkCommand, NetworkMessage};
 use std::time::Instant;
+
+use crate::{
+    synchronisation::{CommandFrame, ServerCommandBuffer},
+    transport::{message, NetworkCommand, NetworkMessage, PostBox},
+};
 
 pub type ClientId = u16;
 
@@ -16,10 +18,9 @@ where
     addr: SocketAddr,
     message_postbox:
         PostBox<ClientToServerMessage, message::ServerToClientMessage<ServerToClientMessage>>,
-    command_postbox: ServerCommandBuffer<ClientToServerCommand>,
+    pub(crate) command_postbox: ServerCommandBuffer<ClientToServerCommand>,
 
     last_packet: Instant,
-    command_frame_offset: usize
 }
 
 impl<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
@@ -37,13 +38,13 @@ where
             command_postbox: ServerCommandBuffer::new(),
 
             last_packet: Instant::now(),
-            command_frame_offset: 7
         }
     }
 
     pub fn add_received_message(
         &mut self,
         message: message::ClientToServerMessage<ClientToServerMessage, ClientToServerCommand>,
+        server_command_frame: CommandFrame,
     ) {
         self.last_packet = Instant::now();
 
@@ -52,13 +53,8 @@ where
                 self.message_postbox.add_to_inbox(message);
             }
             message::ClientToServerMessage::Command(client_command_frame, command) => {
-                self.command_postbox.push(command, client_command_frame);
-
-                // is it the newest one
-                // calculate offset
-
-
-
+                self.command_postbox
+                    .push(command, client_command_frame, server_command_frame);
             }
             message::ClientToServerMessage::TimeSync => {}
         };
@@ -99,3 +95,30 @@ where
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::transport::{Client, ClientToServerMessage, ServerToClientMessage};
+
+    #[test]
+    fn command_message_is_added_to_command_inbox() {
+        let mut client = Client::<u32, u32, u32>::new("127.0.0.1:0".parse().unwrap(), 0);
+
+        client.add_received_message(ClientToServerMessage::Command(1, 1), 1);
+
+        let mut postbox = client.postbox_mut();
+        assert_eq!(
+            client.command_postbox_mut().drain_frame(1).unwrap().len(),
+            1
+        );
+    }
+
+    #[test]
+    fn normal_message_is_added_to_postbox_inbox() {
+        let mut client = Client::<u32, u32, u32>::new("127.0.0.1:0".parse().unwrap(), 0);
+
+        client.add_received_message(ClientToServerMessage::Message(1), 1);
+
+        let mut postbox = client.postbox_mut();
+        assert_eq!(postbox.drain_inbox(|_| true).len(), 1);
+    }
+}

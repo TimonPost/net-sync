@@ -94,7 +94,7 @@ impl Clone for TrackResource {
 
 #[cfg(test)]
 pub mod test {
-    use crate::resources::TrackResource;
+    use super::TrackResource;
 
     #[test]
     fn update_insert_test() {

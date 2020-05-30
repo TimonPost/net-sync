@@ -1,6 +1,5 @@
-use track::serialization::{ModificationSerializer, SerializationStrategy};
-
 use crate::compression::{CompressionStrategy, ModificationCompressor};
+use crate::serialization::{ModificationSerializer, SerializationStrategy};
 
 pub struct Packer<S: SerializationStrategy, C: CompressionStrategy> {
     compression: ModificationCompressor<C>,

@@ -1,4 +1,5 @@
 use std::time::{Duration, Instant};
+
 use crate::synchronisation::CommandFrame;
 
 pub struct CommandFrameTicker {
@@ -58,11 +59,9 @@ impl CommandFrameTicker {
 
 #[cfg(test)]
 mod test {
-    use std::thread;
-    use std::time::Duration;
+    use std::{thread, time::Duration};
 
-    use crate::command_frame::CommandFrameTicker;
-    use crate::synchronisation::command_frame_ticker::CommandFrameTicker;
+    use super::CommandFrameTicker;
 
     #[test]
     fn should_advance_tick() {
