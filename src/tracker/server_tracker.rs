@@ -59,26 +59,6 @@ where
             command_frame,
         }
     }
-    //
-    // pub fn difference(&self) -> Difference<_, C> {
-    //     let diff = self.configure_diff();
-    //
-    //     match self.serialization.serialize::<Diff<C>>(&diff) {
-    //         Ok(data) => {
-    //             if diff.has_changes() {
-    //                 return Difference::new(Some(data), diff)
-    //             } else {
-    //                 return Difference::new(None, diff)
-    //             }
-    //         }
-    //         Err(e) => {
-    //             panic!(
-    //                 "Could not serialize modification information because: {:?}",
-    //                 e
-    //             );
-    //         }
-    //     };
-    // }
 
     pub fn unchanged(&self) -> &C {
         return &self.unchanged;

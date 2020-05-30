@@ -204,14 +204,15 @@ mod test {
         synchronisation::{client_command_buffer::ClientCommandBuffer, ClientCommandBufferEntry},
         transport::{NetworkCommand, NetworkMessage},
     };
+    use std::any::TypeId;
 
     #[test]
     fn should_not_size_over_capacity() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(3, 3, vec![]);
-        buffer.push(3, 4, vec![]);
+        push_command(&mut buffer, 1, 1);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 3, 3);
+        push_command(&mut buffer, 3, 4);
 
         assert_eq!(buffer.commands.len(), 3);
     }
@@ -219,10 +220,10 @@ mod test {
     #[test]
     fn should_delete_all_frames_out_history_scope() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]); // -|
-        buffer.push(1, 1, vec![]); // -- second synchronisation at this frame
-        buffer.push(3, 3, vec![]);
-        buffer.push(3, 4, vec![]);
+        push_command(&mut buffer, 1, 1); // -|
+        push_command(&mut buffer, 1, 1); // -- second synchronisation at this frame
+        push_command(&mut buffer, 3, 3);
+        push_command(&mut buffer, 3, 4);
 
         // The buffer wil retain 3 frame ticks,
         // when the forth is pushed all commands on 1 will be dropped.
@@ -232,13 +233,13 @@ mod test {
     #[test]
     fn should_grow_capacity() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]); // -|
-        buffer.push(1, 1, vec![]); // -- second synchronisation at this frame
-        buffer.push(3, 3, vec![]);
+        push_command(&mut buffer, 1, 1); // -|
+        push_command(&mut buffer, 1, 1); // -- second synchronisation at this frame
+        push_command(&mut buffer, 3, 3);
 
         buffer.grow(1); // buffer is full, grow with 1
 
-        buffer.push(3, 4, vec![]);
+        push_command(&mut buffer, 3, 4);
 
         assert_eq!(buffer.commands.len(), 4);
     }
@@ -254,9 +255,9 @@ mod test {
     #[test]
     fn should_shrink_one_and_delete_elements_above_schrinked_capacity() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(3, 3, vec![]); // will be deleted by shrink
+        push_command(&mut buffer, 1, 1);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 3, 3); // will be deleted by shrink
 
         buffer.shrink(1);
 
@@ -266,9 +267,9 @@ mod test {
     #[test]
     fn should_shrink_two_and_delete_elements_above_schrinked_capacity() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(3, 3, vec![]); // will be deleted by shrink
+        push_command(&mut buffer, 1, 1);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 3, 3); // will be deleted by shrink
 
         buffer.shrink(2);
 
@@ -278,11 +279,11 @@ mod test {
     #[test]
     fn should_iterate_until_history_command_frame() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(3, 3, vec![]);
-        buffer.push(3, 4, vec![]);
+        push_command(&mut buffer, 1, 1);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 3, 3);
+        push_command(&mut buffer, 3, 4);
 
         let collected_frames: Vec<u32> = buffer.iter_history(3).map(|v| v.command_frame).collect();
 
@@ -292,10 +293,10 @@ mod test {
     #[test]
     fn should_iterate_all_frames() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(3, 3, vec![]);
+        push_command(&mut buffer, 1, 1);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 3, 3);
 
         let collected_frames: Vec<u32> = buffer.iter_history(3).map(|v| v.command_frame).collect();
 
@@ -305,15 +306,26 @@ mod test {
     #[test]
     fn clear_old_command_frame() {
         let mut buffer = ClientCommandBuffer::<u32>::with_capacity(3);
-        buffer.push(1, 1, vec![]);
-        buffer.push(1, 2, vec![]);
-        buffer.push(1, 2, vec![]);
+        push_command(&mut buffer, 1, 1);
+        push_command(&mut buffer, 1, 2);
+        push_command(&mut buffer, 1, 2);
 
         buffer.clear_old(1);
 
         let collected_frames: Vec<u32> = buffer.iter_history(1).map(|v| v.command_frame).collect();
 
         assert_eq!(collected_frames, vec![2, 2]);
+    }
+
+    fn push_command(buffer: &mut ClientCommandBuffer<u32>, command: u32, command_frame: u32) {
+        buffer.push(
+            command,
+            command_frame,
+            vec![],
+            vec![],
+            1,
+            TypeId::of::<String>(),
+        );
     }
 
     impl NetworkMessage for u32 {}

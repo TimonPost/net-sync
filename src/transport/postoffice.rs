@@ -242,19 +242,19 @@ mod tests {
         );
         assert_eq!(
             postoffice
-                .add_client("127.0.0.1:10".parse().unwrap())
+                .add_client("127.0.0.1:11".parse().unwrap())
                 .unwrap(),
             1
         );
         assert_eq!(
             postoffice
-                .add_client("127.0.0.1:10".parse().unwrap())
+                .add_client("127.0.0.1:12".parse().unwrap())
                 .unwrap(),
             2
         );
         assert_eq!(
             postoffice
-                .add_client("127.0.0.1:10".parse().unwrap())
+                .add_client("127.0.0.1:13".parse().unwrap())
                 .unwrap(),
             3
         );
@@ -280,7 +280,7 @@ mod tests {
             .add_client("127.0.0.1:10".parse().unwrap())
             .unwrap();
         let id_2 = postoffice
-            .add_client("127.0.0.1:10".parse().unwrap())
+            .add_client("127.0.0.1:11".parse().unwrap())
             .unwrap();
 
         let client = postoffice.client_by_id_mut(&id_1).unwrap();

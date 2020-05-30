@@ -206,13 +206,8 @@ mod test {
     #[test]
     fn should_ignore_future_command_frame() {
         let mut buffer = ServerCommandBuffer::with_config(CommandBufferConfig::new(3, 3));
-        buffer.push(1, 1, 0);
-        buffer.push(1, 2, 0);
-        buffer.push(1, 3, 0);
-        buffer.push(1, 4, 0);
-        buffer.push(1, 5, 0);
-
-        let result = buffer.push(1, 1, 0);
+        buffer.push(1, 1, 3);
+        let result = buffer.push(1, 2, 6);
 
         match result {
             PushResult::ToOld(_) => assert!(true),
@@ -231,7 +226,7 @@ mod test {
                 .drain_frame(1)
                 .unwrap()
                 .iter()
-                .map(|(v)| v.command_frame)
+                .map(|(v)| v.command)
                 .collect::<Vec<u32>>(),
             vec![1, 2]
         )
