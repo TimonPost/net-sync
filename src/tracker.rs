@@ -1,15 +1,19 @@
-use std::any::TypeId;
-use std::fmt::Debug;
+//! This module provides code for tracking state changes.
+
+use std::{any::TypeId, fmt::Debug};
 
 use serde::Serialize;
 use serde_diff::SerdeDiff;
 
-// pub use channel_tracker::ChannelTracker;
 pub use client_tracker::ClientModificationTracker;
 pub use server_tracker::ServerModificationTracker;
 pub use track::TrackResource;
 
-use crate::{serialization, synchronisation::CommandFrame, transport::NetworkCommand, uid::Uid};
+use crate::{
+    serialization,
+    synchronisation::{CommandFrame, NetworkCommand},
+    uid::Uid,
+};
 
 mod client_tracker;
 mod server_tracker;

@@ -23,7 +23,6 @@ bit-set = "0.5"
 log = "0.4.8"
 track-macro = { version = "0.1.0", path = "../track-macro" }
 serde-diff = { version = "0.2.0"  }
-crossbeam-channel = "0.4.0"
 
 # compressorts
 lz4-compress = {version = "0.1.1", optional = true}

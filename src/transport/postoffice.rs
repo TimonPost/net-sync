@@ -10,8 +10,9 @@ use std::{
 use log::debug;
 
 use crate::{
+    synchronisation::{NetworkCommand, NetworkMessage},
     transport,
-    transport::{Client, ClientId, NetworkCommand, NetworkMessage},
+    transport::{Client, ClientId},
 };
 
 pub struct PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>
@@ -140,7 +141,7 @@ mod tests {
     use std::net::SocketAddr;
 
     use crate::{
-        state::WorldState,
+        synchronisation::WorldState,
         transport::{
             Client, ClientId, ClientToServerMessage, PostOffice, ServerToClientMessage,
             ServerToClientMessage::StateUpdate,

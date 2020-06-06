@@ -1,3 +1,5 @@
+//! This module provides code for transporting data from one endpoint to another.
+
 use std::hash::Hash;
 
 use serde::{Deserialize, Serialize};
@@ -14,10 +16,3 @@ mod message;
 mod postbox;
 mod postoffice;
 pub mod tcp;
-
-pub trait NetworkMessage:
-    Serialize + for<'a> Deserialize<'a> + Send + Sync + Clone + 'static
-{
-}
-
-pub trait NetworkCommand: Clone + NetworkMessage + Hash + Eq + PartialEq + 'static {}

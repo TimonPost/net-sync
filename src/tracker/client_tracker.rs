@@ -8,9 +8,8 @@ use serde_diff::{Config, Diff, FieldPathMode};
 use crate::{
     error::ErrorKind,
     serialization::SerializationStrategy,
-    synchronisation::CommandFrame,
+    synchronisation::{CommandFrame, NetworkCommand},
     tracker::{ClientChangeTracker, TrackableMarker},
-    transport::NetworkCommand,
     uid::Uid,
 };
 

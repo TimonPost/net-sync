@@ -1,3 +1,4 @@
+use crate::synchronisation::NetworkMessage;
 use std::{
     collections::{
         vec_deque::{Iter, IterMut},
@@ -5,8 +6,6 @@ use std::{
     },
     iter::Enumerate,
 };
-
-use crate::transport::NetworkMessage;
 
 pub struct PostBox<In, Out>
 where

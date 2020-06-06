@@ -1,20 +1,31 @@
+//! This module provides code for identifying entities.
+
 use std::{collections::HashMap, hash::Hash, u32};
 
 pub type Uid = u32;
 
+/// This allocator can be used to generate identifiers for an given generic type.
+/// The allocator uses an underlying hashmap for quick look ups,
+/// were the `Key` is `T` and the `Value` is `u32`.
+///
+/// Identifiers are generated incremental. This might change in the future to reuse space.
 pub struct UidAllocator<T: Hash + Eq> {
-    index: u32,
+    // An incremental counter used for the identifier.
+    current_id: u32,
+    // A hasmap where the generic types and assigned identifiers are stored.
     mapping: HashMap<T, u32>,
 }
 
 impl<T: Hash + Eq> UidAllocator<T> {
+    /// Returns a new instance of the `UidAllocator`.n
     pub fn new() -> Self {
         Self {
-            index: 1,
+            current_id: 1,
             mapping: HashMap::new(),
         }
     }
 
+    /// Returns the assigned `Uid` for the given key `T`.
     pub fn get(&self, key: &T) -> Uid {
         *self.mapping.get(key).expect("Uid should exist!")
     }
@@ -54,8 +65,8 @@ impl<T: Hash + Eq> UidAllocator<T> {
     }
 
     pub fn get_and_increment(&mut self) -> u32 {
-        let id = self.index;
-        self.index += 1;
+        let id = self.current_id;
+        self.current_id += 1;
         id
     }
 }

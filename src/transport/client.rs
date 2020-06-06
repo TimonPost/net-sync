@@ -1,9 +1,8 @@
-use std::net::SocketAddr;
-use std::time::Instant;
+use std::{net::SocketAddr, time::Instant};
 
 use crate::{
-    synchronisation::{CommandFrame, ServerCommandBuffer},
-    transport::{message, NetworkCommand, NetworkMessage, PostBox},
+    synchronisation::{CommandFrame, NetworkCommand, NetworkMessage, ServerCommandBuffer},
+    transport::{message, PostBox},
 };
 
 pub type ClientId = u16;

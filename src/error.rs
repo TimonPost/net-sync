@@ -1,9 +1,13 @@
+//! Module that provides code for error handling.
+
 use std::fmt::{Display, Formatter};
 
-/// Wrapper for all errors that can occur in `crossterm`.
+/// Wrapper for all errors that can occur in `net-sync`.
 #[derive(Debug)]
 pub enum ErrorKind {
+    /// An error has occurred related to data compression.
     CompressionError(String),
+    // An error has occurred related to data serialization.
     SerializationError(String),
 }
 

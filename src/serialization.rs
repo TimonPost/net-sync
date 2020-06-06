@@ -1,4 +1,4 @@
-//! Module with different serializers that can be used with this crate.
+//! Module that provides serializers to be used for serializing/deserializing data.
 //!
 //! By default, a number of serializers are supplied that can be used by turning on the feature flag.
 //! You might want to create your own serializing strategy by implementing: [SerializationStrategy](./trait.SerializationStrategy.html).

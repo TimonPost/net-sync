@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{state::WorldState, synchronisation::CommandFrame, transport::NetworkMessage};
+use crate::synchronisation::{CommandFrame, NetworkMessage, WorldState};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum ClientToServerMessage<Message, Command> {

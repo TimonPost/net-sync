@@ -1,3 +1,5 @@
+//! Module that provides code for applying differences to a type.
+
 use serde_diff::SerdeDiff;
 
 use crate::{error::ErrorKind, serialization::SerializationStrategy};

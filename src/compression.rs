@@ -1,4 +1,4 @@
-//! Module with different compressors that can be used with this crate.
+//! Module that provides different compressors to be used for compressing data.
 //!
 //! By default, a number of compressions are supplied that can be used by turning on the feature flag.
 //! You might want to create your own compression strategy by implementing: [CompressionStrategy](LINK).

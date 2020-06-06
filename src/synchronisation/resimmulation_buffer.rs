@@ -1,9 +1,6 @@
 use std::collections::{vec_deque::Iter, VecDeque};
 
-use crate::{
-    synchronisation::{ClientCommandBufferEntry, CommandFrame},
-    transport::NetworkCommand,
-};
+use crate::synchronisation::{ClientCommandBufferEntry, CommandFrame, NetworkCommand};
 
 // TODO: make resim buffer empty when iterated
 

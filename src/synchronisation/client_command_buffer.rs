@@ -7,7 +7,8 @@ use std::{
 };
 
 use crate::{
-    synchronisation::CommandFrame, tracker::ClientChangeTracker, transport::NetworkCommand,
+    synchronisation::{CommandFrame, NetworkCommand},
+    tracker::ClientChangeTracker,
     uid::Uid,
 };
 
