@@ -6,6 +6,7 @@ pub struct CommandFrameTicker {
     last_execution: Instant,
     command_frame: CommandFrame,
     simulation_speed: f32,
+    default_simulation_speed: f32,
 }
 
 impl CommandFrameTicker {
@@ -14,6 +15,7 @@ impl CommandFrameTicker {
             last_execution: Instant::now(),
             simulation_speed,
             command_frame: 0,
+            default_simulation_speed: simulation_speed
         }
     }
 
@@ -27,6 +29,10 @@ impl CommandFrameTicker {
 
     pub fn simulation_speed(&self) -> f32 {
         self.simulation_speed
+    }
+
+    pub fn default_simulation_speed(&self) -> f32 {
+        self.default_simulation_speed
     }
 
     pub fn last_execution(&self) -> Instant {

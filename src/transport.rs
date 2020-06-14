@@ -2,8 +2,6 @@
 
 use std::hash::Hash;
 
-use serde::{Deserialize, Serialize};
-
 pub use self::{
     client::{Client, ClientId},
     message::*,
