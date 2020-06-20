@@ -8,6 +8,7 @@ pub mod synchronisation;
 pub mod tracker;
 pub mod transport;
 pub mod uid;
+pub mod event;
 
 pub mod track_attr {
     //! This module can be used to import all types that are required by the [track](./struct.Tracker.html) attribute.
