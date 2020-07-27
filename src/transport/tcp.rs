@@ -1,16 +1,23 @@
-use std::{collections::{hash_map::IterMut, HashMap}, io::Write, net::{SocketAddr, TcpListener, TcpStream}, io};
+use std::{
+    collections::{hash_map::IterMut, HashMap},
+    io,
+    io::Write,
+    net::{SocketAddr, TcpListener, TcpStream},
+};
 
-use std::collections::hash_map::{Iter, Keys};
-use crate::serialization::SerializationStrategy;
-use crate::compression::CompressionStrategy;
-use crate::synchronisation::{NetworkMessage, NetworkCommand, CommandFrame};
-use crate::packer::Packer;
-use crate::transport::{PostOffice, PostBox};
-use crate::transport;
-use crate::event::{NetworkEventQueue, NetworkEvent};
-use std::io::{Read, Error};
-use log::{error, debug};
-use crate::error::{ErrorKind};
+use crate::{
+    compression::CompressionStrategy,
+    error::ErrorKind,
+    event::{NetworkEvent, NetworkEventQueue},
+    synchronisation::{CommandFrame, NetworkCommand, NetworkMessage},
+    transport,
+    transport::{PostBox, PostOffice},
+};
+use log::{debug, error};
+use std::{
+    collections::hash_map::{Iter, Keys},
+    io::{Error, Read},
+};
 
 pub struct TcpClientResource {
     stream: TcpStream,
@@ -18,11 +25,14 @@ pub struct TcpClientResource {
 }
 
 impl TcpClientResource {
-    pub fn new(addr: SocketAddr) ->  Result<TcpClientResource, ErrorKind> {
+    pub fn new(addr: SocketAddr) -> Result<TcpClientResource, ErrorKind> {
         let stream = TcpStream::connect(addr).unwrap();
         stream.set_nonblocking(true).unwrap();
 
-        Ok(TcpClientResource { stream, connected: true })
+        Ok(TcpClientResource {
+            stream,
+            connected: true,
+        })
     }
 
     pub fn is_connected(&self) -> bool {
@@ -118,7 +128,15 @@ pub fn tcp_connection_listener<
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
     ClientToServerCommand: NetworkCommand,
->(tcp: &mut TcpListenerResource, postoffice: &mut PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>, network_events: &mut NetworkEventQueue) {
+>(
+    tcp: &mut TcpListenerResource,
+    postoffice: &mut PostOffice<
+        ServerToClientMessage,
+        ClientToServerMessage,
+        ClientToServerCommand,
+    >,
+    network_events: &mut NetworkEventQueue,
+) {
     if !tcp.get().is_some() {
         return;
     }
@@ -151,14 +169,20 @@ pub fn tcp_connection_listener<
     }
 }
 
-
 pub fn tcp_client_receive_system<
-    S: SerializationStrategy + 'static,
-    C: CompressionStrategy + 'static,
+//    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
     ClientToServerCommand: NetworkCommand,
->(tcp: &mut TcpClientResource, postbox: &mut PostBox<transport::ServerToClientMessage<ServerToClientMessage>,transport::ClientToServerMessage<ClientToServerMessage, ClientToServerCommand>>, packer: &Packer<S, C>, network_events: &mut NetworkEventQueue, recv_buffer: &mut Vec<u8>) {
+>(
+    tcp: &mut TcpClientResource,
+    postbox: &mut PostBox<
+        transport::ServerToClientMessage<ServerToClientMessage>,
+        transport::ClientToServerMessage<ClientToServerMessage, ClientToServerCommand>,
+    >,
+    network_events: &mut NetworkEventQueue,
+    recv_buffer: &mut Vec<u8>,
+) {
     let result = tcp.stream().read(recv_buffer);
 
     match result {
@@ -171,10 +195,9 @@ pub fn tcp_client_receive_system<
             //     .compression()
             //     .decompress(&recv_buffer[..recv_len]) {
             //     Ok(decompressed) => {
-            match packer.serialization().deserialize::<Vec<
-                transport::ServerToClientMessage<ServerToClientMessage>,
-            >>(&recv_buffer[..recv_len])
-            {
+            match bincode::deserialize::<Vec<transport::ServerToClientMessage<ServerToClientMessage>>>(
+                    &recv_buffer[..recv_len],
+                ) {
                 Ok(deserialized) => {
                     debug!("Received {} bytes from server.", recv_len);
                     for packet in deserialized.into_iter() {
@@ -197,26 +220,32 @@ pub fn tcp_client_receive_system<
         Err(e) => {
             match e.kind() {
                 io::ErrorKind::ConnectionReset => {
-                    let addr = tcp.addr().expect("Can not read client local socket address.");
+                    let addr = tcp
+                        .addr()
+                        .expect("Can not read client local socket address.");
                     tcp.set_connected(false);
                     network_events.enqueue(NetworkEvent::Disconnected(addr, 0)) // TODO: replace with current client id
                 }
                 io::ErrorKind::WouldBlock => {}
-                _ => {
-                    error!("Error occurred when receiving TCP-packet {}", e)
-                }
+                _ => error!("Error occurred when receiving TCP-packet {}", e),
             };
         }
     }
 }
 
 pub fn tcp_client_sent_system<
-    S: SerializationStrategy + 'static,
-    C: CompressionStrategy + 'static,
+//    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
     ClientToServerCommand: NetworkCommand,
->(tcp: &mut TcpClientResource, postbox: &mut PostBox<transport::ServerToClientMessage<ServerToClientMessage>,transport::ClientToServerMessage<ClientToServerMessage, ClientToServerCommand>>,  packer: &Packer<S, C>,  network_events: &mut NetworkEventQueue) {
+>(
+    tcp: &mut TcpClientResource,
+    postbox: &mut PostBox<
+        transport::ServerToClientMessage<ServerToClientMessage>,
+        transport::ClientToServerMessage<ClientToServerMessage, ClientToServerCommand>,
+    >,
+    network_events: &mut NetworkEventQueue,
+) {
     if postbox.empty_outgoing() {
         return;
     }
@@ -229,7 +258,7 @@ pub fn tcp_client_sent_system<
         return;
     }
 
-    match &packer.serialization().serialize(&packets) {
+    match bincode::serialize(&packets) {
         Ok(serialized) => {
             debug!("Sending {} packets to host.", packets.len());
             // let compressed = packer.compression().compress(&serialized);
@@ -243,10 +272,13 @@ pub fn tcp_client_sent_system<
                     ErrorKind::IoError(e) => {
                         match e.kind() {
                             io::ErrorKind::ConnectionReset | io::ErrorKind::BrokenPipe => {
-                                let addr = tcp.addr().expect("Failed tor read client local socket addr.");
+                                let addr = tcp
+                                    .addr()
+                                    .expect("Failed tor read client local socket addr.");
                                 tcp.set_connected(false);
-                                network_events.enqueue(NetworkEvent::Disconnected(addr, 0)) // TODO: replace with current client id
-                            },
+                                network_events.enqueue(NetworkEvent::Disconnected(addr, 0))
+                                // TODO: replace with current client id
+                            }
                             _ => {
                                 error!("Error occurred when sending TCP-packet. Reason: {:?}", e);
                             }
@@ -266,12 +298,21 @@ pub fn tcp_client_sent_system<
 }
 
 pub fn tcp_server_receive_system<
-    S: SerializationStrategy + 'static,
-    C: CompressionStrategy + 'static,
+//    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
-    ClientToServerCommand: NetworkCommand
->(tcp: &mut TcpListenerResource, postoffice: &mut PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>, packer: &Packer<S, C>, command_frame: CommandFrame, network_events: &mut NetworkEventQueue, recv_buffer: &mut Vec<u8>) {
+    ClientToServerCommand: NetworkCommand,
+>(
+    tcp: &mut TcpListenerResource,
+    postoffice: &mut PostOffice<
+        ServerToClientMessage,
+        ClientToServerMessage,
+        ClientToServerCommand,
+    >,
+    command_frame: CommandFrame,
+    network_events: &mut NetworkEventQueue,
+    recv_buffer: &mut Vec<u8>,
+) {
     for (_, (active, stream)) in tcp.iter_mut() {
         // If we can't get a peer_addr, there is likely something pretty wrong with the
         // connection so we'll mark it inactive.
@@ -308,35 +349,38 @@ pub fn tcp_server_receive_system<
                     //     .compression()
                     //     .decompress(buffer) {
                     //     Ok(decompressed) => {
-                    match packer
-                        .serialization()
-                        .deserialize::<Vec<transport::ClientToServerMessage<ClientToServerMessage, ClientToServerCommand>>>(buffer) {
+                    match  bincode::deserialize::<Vec<
+                        transport::ClientToServerMessage<
+                            ClientToServerMessage,
+                            ClientToServerCommand,
+                        >,
+                    >>(buffer)
+                    {
                         Ok(deserialized) => {
-                            debug!(
-                                "Received {:?} packets",
-                                deserialized.len()
-                            );
+                            debug!("Received {:?} packets", deserialized.len());
 
                             for packet in deserialized.into_iter() {
-                                client
-                                    .add_received_message(packet, command_frame)
+                                client.add_received_message(packet, command_frame)
                             }
                         }
                         Err(e) => {
-                            error!("Error occurred when deserializing TCP-packet. Reason: {:?}", e);
-                        }
-                        // };
-                        //     }
-                        //     Err(e) => {
-                        //         error!("Error occurred when decompressing TCP-packet. Reason: {:?}", e);
-                        //     }
+                            error!(
+                                "Error occurred when deserializing TCP-packet. Reason: {:?}",
+                                e
+                            );
+                        } // };
+                          //     }
+                          //     Err(e) => {
+                          //         error!("Error occurred when decompressing TCP-packet. Reason: {:?}", e);
+                          //     }
                     }
                 }
                 Err(e) => {
                     match e.kind() {
                         io::ErrorKind::ConnectionReset => {
                             *active = false;
-                            network_events.enqueue(NetworkEvent::Disconnected(peer_addr, client.client_id()))
+                            network_events
+                                .enqueue(NetworkEvent::Disconnected(peer_addr, client.client_id()))
                         }
                         io::ErrorKind::WouldBlock => {}
                         _ => {}
@@ -350,12 +394,19 @@ pub fn tcp_server_receive_system<
 }
 
 pub fn tcp_server_sent_system<
-    S: SerializationStrategy + 'static,
-    C: CompressionStrategy + 'static,
+//    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
-    ClientToServerCommand: NetworkCommand
->(tcp: &mut TcpListenerResource, postoffice: &mut PostOffice<ServerToClientMessage, ClientToServerMessage, ClientToServerCommand>, packer: &Packer<S, C>, network_events: &mut NetworkEventQueue) {
+    ClientToServerCommand: NetworkCommand,
+>(
+    tcp: &mut TcpListenerResource,
+    postoffice: &mut PostOffice<
+        ServerToClientMessage,
+        ClientToServerMessage,
+        ClientToServerCommand,
+    >,
+    network_events: &mut NetworkEventQueue,
+) {
     for client in postoffice.clients_mut() {
         let addr = client.1.addr();
 
@@ -373,12 +424,9 @@ pub fn tcp_server_sent_system<
             continue;
         }
 
-        match &packer.serialization().serialize(&packets) {
+        match bincode::serialize(&packets) {
             Ok(serialized) => {
-                debug!(
-                    "Sending {} packets to TCP stream.",
-                    packets.len()
-                );
+                debug!("Sending {} packets to TCP stream.", packets.len());
 
                 // let compressed = packer.compression().compress(&serialized);
                 //
@@ -390,7 +438,7 @@ pub fn tcp_server_sent_system<
                     match e.kind() {
                         io::ErrorKind::ConnectionReset | io::ErrorKind::BrokenPipe => {
                             network_events.enqueue(NetworkEvent::Disconnected(addr, *client.0))
-                        },
+                        }
                         _ => {
                             error!("Error occurred when sending TCP-packet. Reason: {:?}", e);
                         }

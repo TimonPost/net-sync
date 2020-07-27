@@ -1,20 +1,19 @@
-use std::net::SocketAddr;
 use crate::transport::ClientId;
-use std::collections::VecDeque;
+use std::{collections::VecDeque, net::SocketAddr};
 
 pub enum NetworkEvent {
     Connected(SocketAddr),
-    Disconnected(SocketAddr, ClientId)
+    Disconnected(SocketAddr, ClientId),
 }
 
 pub struct NetworkEventQueue {
-    network_events: VecDeque<NetworkEvent>
+    network_events: VecDeque<NetworkEvent>,
 }
 
 impl NetworkEventQueue {
     pub fn new() -> NetworkEventQueue {
         NetworkEventQueue {
-            network_events: VecDeque::new()
+            network_events: VecDeque::new(),
         }
     }
 
