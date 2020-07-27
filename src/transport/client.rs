@@ -37,7 +37,7 @@ where
             command_postbox: ServerCommandBuffer::new(),
 
             last_packet: Instant::now(),
-            connected_at: Instant::now()
+            connected_at: Instant::now(),
         }
     }
 

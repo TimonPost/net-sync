@@ -3,7 +3,6 @@
 use std::{
     fmt::{Display, Formatter},
     io,
-    io::Error,
 };
 
 /// Wrapper for all errors that can occur in `net-sync`.

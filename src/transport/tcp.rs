@@ -6,7 +6,6 @@ use std::{
 };
 
 use crate::{
-    compression::CompressionStrategy,
     error::ErrorKind,
     event::{NetworkEvent, NetworkEventQueue},
     synchronisation::{CommandFrame, NetworkCommand, NetworkMessage},
@@ -16,7 +15,7 @@ use crate::{
 use log::{debug, error};
 use std::{
     collections::hash_map::{Iter, Keys},
-    io::{Error, Read},
+    io::Read,
 };
 
 pub struct TcpClientResource {
@@ -170,7 +169,7 @@ pub fn tcp_connection_listener<
 }
 
 pub fn tcp_client_receive_system<
-//    C: CompressionStrategy + 'static,
+    //    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
     ClientToServerCommand: NetworkCommand,
@@ -196,8 +195,8 @@ pub fn tcp_client_receive_system<
             //     .decompress(&recv_buffer[..recv_len]) {
             //     Ok(decompressed) => {
             match bincode::deserialize::<Vec<transport::ServerToClientMessage<ServerToClientMessage>>>(
-                    &recv_buffer[..recv_len],
-                ) {
+                &recv_buffer[..recv_len],
+            ) {
                 Ok(deserialized) => {
                     debug!("Received {} bytes from server.", recv_len);
                     for packet in deserialized.into_iter() {
@@ -234,7 +233,7 @@ pub fn tcp_client_receive_system<
 }
 
 pub fn tcp_client_sent_system<
-//    C: CompressionStrategy + 'static,
+    //    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
     ClientToServerCommand: NetworkCommand,
@@ -298,7 +297,7 @@ pub fn tcp_client_sent_system<
 }
 
 pub fn tcp_server_receive_system<
-//    C: CompressionStrategy + 'static,
+    //    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
     ClientToServerCommand: NetworkCommand,
@@ -349,12 +348,14 @@ pub fn tcp_server_receive_system<
                     //     .compression()
                     //     .decompress(buffer) {
                     //     Ok(decompressed) => {
-                    match  bincode::deserialize::<Vec<
-                        transport::ClientToServerMessage<
-                            ClientToServerMessage,
-                            ClientToServerCommand,
+                    match bincode::deserialize::<
+                        Vec<
+                            transport::ClientToServerMessage<
+                                ClientToServerMessage,
+                                ClientToServerCommand,
+                            >,
                         >,
-                    >>(buffer)
+                    >(buffer)
                     {
                         Ok(deserialized) => {
                             debug!("Received {:?} packets", deserialized.len());
@@ -394,7 +395,7 @@ pub fn tcp_server_receive_system<
 }
 
 pub fn tcp_server_sent_system<
-//    C: CompressionStrategy + 'static,
+    //    C: CompressionStrategy + 'static,
     ServerToClientMessage: NetworkMessage,
     ClientToServerMessage: NetworkMessage,
     ClientToServerCommand: NetworkCommand,

@@ -29,7 +29,7 @@ where
     command_frame: CommandFrame,
 }
 
-impl<'borrow, 'notifier, C,  T> ServerModificationTracker<'borrow, 'notifier, C, T>
+impl<'borrow, 'notifier, C, T> ServerModificationTracker<'borrow, 'notifier, C, T>
 where
     C: TrackableMarker,
     T: ServerChangeTracker,
@@ -59,7 +59,8 @@ where
     }
 
     pub fn serialize_unchanged(&self) -> Result<Vec<u8>, ErrorKind> {
-        bincode::serialize(&self.unchanged).map_err(|e| ErrorKind::SerializationError(e.to_string()))
+        bincode::serialize(&self.unchanged)
+            .map_err(|e| ErrorKind::SerializationError(e.to_string()))
     }
 
     fn configure_diff(&self) -> Diff<'_, '_, C> {
@@ -82,8 +83,7 @@ where
     }
 }
 
-impl<'borrow, 'notifier, C, T> DerefMut
-    for ServerModificationTracker<'borrow, 'notifier, C, T>
+impl<'borrow, 'notifier, C, T> DerefMut for ServerModificationTracker<'borrow, 'notifier, C, T>
 where
     C: TrackableMarker,
     T: ServerChangeTracker,

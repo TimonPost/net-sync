@@ -64,11 +64,12 @@ where
     }
 
     pub fn serialize_unchanged(&self) -> Result<Vec<u8>, ErrorKind> {
-        bincode::serialize(&self.unchanged).map_err(|e| ErrorKind::SerializationError(e.to_string()))
+        bincode::serialize(&self.unchanged)
+            .map_err(|e| ErrorKind::SerializationError(e.to_string()))
     }
 
     pub fn serialize_changed(&self) -> Result<Vec<u8>, ErrorKind> {
-       bincode::serialize(&self.borrow).map_err(|e| ErrorKind::SerializationError(e.to_string()))
+        bincode::serialize(&self.borrow).map_err(|e| ErrorKind::SerializationError(e.to_string()))
     }
 
     fn configure_diff(&self) -> Diff<'_, '_, C> {
@@ -78,8 +79,7 @@ where
     }
 }
 
-impl<'borrow, 'notifier, C, T, CM> Deref
-    for ClientModificationTracker<'borrow, 'notifier, C, T, CM>
+impl<'borrow, 'notifier, C, T, CM> Deref for ClientModificationTracker<'borrow, 'notifier, C, T, CM>
 where
     C: TrackableMarker,
     T: ClientChangeTracker<CM>,
@@ -106,8 +106,7 @@ where
     }
 }
 
-impl<'borrow, 'notifier, C, T, CM> Drop
-    for ClientModificationTracker<'borrow, 'notifier, C, T, CM>
+impl<'borrow, 'notifier, C, T, CM> Drop for ClientModificationTracker<'borrow, 'notifier, C, T, CM>
 where
     C: TrackableMarker,
     T: ClientChangeTracker<CM>,

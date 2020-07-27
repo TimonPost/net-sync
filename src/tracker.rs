@@ -23,7 +23,7 @@ mod track;
 /// Do not implement this trait manually but use the `track` attribute for less boiler plate code.
 pub trait Trackable<Component>
 where
-    Component: TrackableMarker
+    Component: TrackableMarker,
 {
     fn server_track<'notifier, Tracker: ServerChangeTracker>(
         &mut self,
