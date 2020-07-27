@@ -7,7 +7,6 @@ use serde_diff::{Config, Diff, FieldPathMode};
 
 use crate::{
     error::ErrorKind,
-    serialization::SerializationStrategy,
     synchronisation::CommandFrame,
     tracker::{ServerChangeTracker, TrackableMarker},
     uid::Uid,
@@ -18,24 +17,21 @@ use crate::{
 /// The [Tracker](./struct.Tracker.html) implements [DerefMut](./struct.Tracker.html#impl-DerefMut) which makes it possible to treat this tracker as if you are working with the type you track.
 /// On [Drop](./struct.Tracker.html#impl-Drop) it checks if modifications have been made.
 /// If this is the case only the modified fields in an event will be sent to the given sender.
-pub struct ServerModificationTracker<'borrow, 'notifier, Component, Serializer, Tracker>
+pub struct ServerModificationTracker<'borrow, 'notifier, Component, Tracker>
 where
     Component: TrackableMarker,
-    Serializer: SerializationStrategy,
     Tracker: ServerChangeTracker,
 {
     unchanged: Component,
     borrow: &'borrow mut Component,
-    serialization: Serializer,
     tracker: &'notifier mut Tracker,
     identifier: Uid,
     command_frame: CommandFrame,
 }
 
-impl<'borrow, 'notifier, C, S, T> ServerModificationTracker<'borrow, 'notifier, C, S, T>
+impl<'borrow, 'notifier, C, T> ServerModificationTracker<'borrow, 'notifier, C, T>
 where
     C: TrackableMarker,
-    S: SerializationStrategy,
     T: ServerChangeTracker,
 {
     /// Constructs a new tracker.
@@ -45,15 +41,13 @@ where
     ///     This serializer is needed to monitor the changes and the serialized mutations are sent along with the event.
     pub fn new(
         borrow: &'borrow mut C,
-        serialization: S,
         tracker: &'notifier mut T,
         identifier: Uid,
         command_frame: CommandFrame,
-    ) -> ServerModificationTracker<'borrow, 'notifier, C, S, T> {
+    ) -> ServerModificationTracker<'borrow, 'notifier, C, T> {
         ServerModificationTracker {
             unchanged: (borrow.deref()).clone(),
             borrow,
-            serialization,
             tracker,
             identifier,
             command_frame,
@@ -65,7 +59,8 @@ where
     }
 
     pub fn serialize_unchanged(&self) -> Result<Vec<u8>, ErrorKind> {
-        self.serialization.serialize(&self.unchanged)
+        bincode::serialize(&self.unchanged)
+            .map_err(|e| ErrorKind::SerializationError(e.to_string()))
     }
 
     fn configure_diff(&self) -> Diff<'_, '_, C> {
@@ -75,10 +70,9 @@ where
     }
 }
 
-impl<'borrow, 'notifier, C, S, T> Deref for ServerModificationTracker<'borrow, 'notifier, C, S, T>
+impl<'borrow, 'notifier, C, T> Deref for ServerModificationTracker<'borrow, 'notifier, C, T>
 where
     C: TrackableMarker,
-    S: SerializationStrategy,
     T: ServerChangeTracker,
 {
     type Target = C;
@@ -89,11 +83,9 @@ where
     }
 }
 
-impl<'borrow, 'notifier, C, S, T> DerefMut
-    for ServerModificationTracker<'borrow, 'notifier, C, S, T>
+impl<'borrow, 'notifier, C, T> DerefMut for ServerModificationTracker<'borrow, 'notifier, C, T>
 where
     C: TrackableMarker,
-    S: SerializationStrategy,
     T: ServerChangeTracker,
 {
     /// Returns a mutable reference to the underlying type being tracked.
@@ -102,10 +94,9 @@ where
     }
 }
 
-impl<'borrow, 'notifier, C, S, T> Drop for ServerModificationTracker<'borrow, 'notifier, C, S, T>
+impl<'borrow, 'notifier, C, T> Drop for ServerModificationTracker<'borrow, 'notifier, C, T>
 where
     C: TrackableMarker,
-    S: SerializationStrategy,
     T: ServerChangeTracker,
 {
     /// Checks to see if any field values have changed.
@@ -113,7 +104,7 @@ where
     fn drop(&mut self) {
         let diff = self.configure_diff();
 
-        match self.serialization.serialize::<Diff<C>>(&diff) {
+        match bincode::serialize(&diff) {
             Ok(_data) => {
                 if diff.has_changes() {
                     self.tracker.push(

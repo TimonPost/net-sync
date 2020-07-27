@@ -1,14 +1,11 @@
-pub mod apply;
 pub mod clock;
 pub mod compression;
 pub mod error;
-pub mod packer;
-pub mod serialization;
+pub mod event;
 pub mod synchronisation;
 pub mod tracker;
 pub mod transport;
 pub mod uid;
-pub mod event;
 
 pub mod track_attr {
     //! This module can be used to import all types that are required by the [track](./struct.Tracker.html) attribute.
@@ -19,7 +16,6 @@ pub mod track_attr {
 
     pub use crate::{
         re_exports::serde_diff::{self, *},
-        serialization::{bincode::Bincode, SerializationStrategy},
         synchronisation::{CommandFrame, NetworkCommand},
         tracker::{
             ClientChangeTracker, ClientModificationTracker, ServerChangeTracker,
@@ -45,5 +41,10 @@ pub mod re_exports {
     /// A re-export of the [bit-set](https://crates.io/crates/bit-set) create.
     pub mod bit_set {
         pub use bit_set::*;
+    }
+
+    /// A re-export of the [bit-set](https://crates.io/crates/bit-set) create.
+    pub mod bincode {
+        pub use bincode::*;
     }
 }

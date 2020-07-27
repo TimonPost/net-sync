@@ -14,6 +14,7 @@ pub enum ServerToClientMessage<Message> {
     // The server state update.
     StateUpdate(WorldState),
     Message(Message),
+    InitialStateSync(Vec<u8>),
 }
 
 impl<Message: Serialize + for<'a> Deserialize<'a> + Send + Sync + Clone + 'static> NetworkMessage

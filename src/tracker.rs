@@ -10,7 +10,6 @@ pub use server_tracker::ServerModificationTracker;
 pub use track::TrackResource;
 
 use crate::{
-    serialization,
     synchronisation::{CommandFrame, NetworkCommand},
     uid::Uid,
 };
@@ -22,17 +21,16 @@ mod track;
 /// A trait with functions for tracking struct value modifications.
 ///
 /// Do not implement this trait manually but use the `track` attribute for less boiler plate code.
-pub trait Trackable<Component, Serializer>
+pub trait Trackable<Component>
 where
     Component: TrackableMarker,
-    Serializer: serialization::SerializationStrategy,
 {
     fn server_track<'notifier, Tracker: ServerChangeTracker>(
         &mut self,
         tracker: &'notifier mut Tracker,
         entity_id: Uid,
         command_frame: CommandFrame,
-    ) -> ServerModificationTracker<'_, 'notifier, Component, Serializer, Tracker>;
+    ) -> ServerModificationTracker<'_, 'notifier, Component, Tracker>;
 
     fn client_track<'notifier, Tracker: ClientChangeTracker<Command>, Command: NetworkCommand>(
         &mut self,
@@ -40,7 +38,7 @@ where
         command: Command,
         entity_id: Uid,
         command_frame: CommandFrame,
-    ) -> ClientModificationTracker<'_, 'notifier, Component, Serializer, Tracker, Command>;
+    ) -> ClientModificationTracker<'_, 'notifier, Component, Tracker, Command>;
 }
 
 /// A marker trait with a number of requirements that are mandatory for trackable types.

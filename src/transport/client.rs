@@ -18,7 +18,7 @@ where
     message_postbox:
         PostBox<ClientToServerMessage, message::ServerToClientMessage<ServerToClientMessage>>,
     pub(crate) command_postbox: ServerCommandBuffer<ClientToServerCommand>,
-
+    connected_at: Instant,
     last_packet: Instant,
 }
 
@@ -37,6 +37,7 @@ where
             command_postbox: ServerCommandBuffer::new(),
 
             last_packet: Instant::now(),
+            connected_at: Instant::now(),
         }
     }
 
@@ -57,6 +58,10 @@ where
             }
             message::ClientToServerMessage::TimeSync => {}
         };
+    }
+
+    pub fn connected_at(&self) -> Instant {
+        self.connected_at
     }
 
     pub fn last_packet(&self) -> Instant {

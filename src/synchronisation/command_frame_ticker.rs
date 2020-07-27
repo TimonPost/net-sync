@@ -15,7 +15,7 @@ impl CommandFrameTicker {
             last_execution: Instant::now(),
             simulation_speed,
             command_frame: 0,
-            default_simulation_speed: simulation_speed
+            default_simulation_speed: simulation_speed,
         }
     }
 

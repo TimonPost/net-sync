@@ -1,7 +1,5 @@
 //! This module provides code for transporting data from one endpoint to another.
 
-use std::hash::Hash;
-
 pub use self::{
     client::{Client, ClientId},
     message::*,

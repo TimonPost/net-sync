@@ -34,8 +34,8 @@ impl CommandBufferConfig {
 impl Default for CommandBufferConfig {
     fn default() -> Self {
         CommandBufferConfig {
-            ignore_newer_then: 10,
-            ignore_older_then: 10,
+            ignore_newer_then: 20,
+            ignore_older_then: 5,
         }
     }
 }
